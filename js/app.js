@@ -10,7 +10,59 @@ const ENTITIES = {
   servicos: { label: 'Serviço', labelPlural: 'Serviços' },
 };
 
+const SUBTITLES = {
+  dashboard: 'Visão geral dos agendamentos',
+  agendamentos: 'Gerencie os agendamentos',
+  medicos: 'Cadastro de médicos',
+  pacientes: 'Cadastro de pacientes',
+  servicos: 'Serviços oferecidos',
+};
+
+const ICONS = {
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  calendarCheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18M9 15l2 2 4-4"/></svg>',
+  stethoscope: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6M10 6h4M12 2v4"/><circle cx="12" cy="13" r="4"/><path d="M6 21c0-3 2.7-5 6-5s6 2 6 5"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 21c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15.6c2.9-.3 5.5 1.6 5.5 4.4"/></svg>',
+  activity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>',
+};
+
+const STATS = [
+  { label: 'Total Agendamentos', icon: 'calendar', tone: 't-indigo' },
+  { label: 'Pendentes', icon: 'clock', tone: 't-amber' },
+  { label: 'Hoje', icon: 'calendarCheck', tone: 't-green' },
+  { label: 'Médicos', icon: 'stethoscope', tone: 't-sky' },
+  { label: 'Pacientes', icon: 'users', tone: 't-violet' },
+  { label: 'Serviços', icon: 'activity', tone: 't-emerald' },
+];
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('redemedica-theme', theme); } catch {}
+  const t = document.getElementById('themeToggle');
+  if (t) t.innerHTML = ICONS[theme === 'dark' ? 'sun' : 'moon'];
+}
+
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('redemedica-theme'); } catch {}
+  const prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setTheme(saved || (prefers ? 'dark' : 'light'));
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  setTheme(cur);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', e => {
       e.preventDefault();
@@ -19,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fecharSidebarMobile();
     });
   });
+
   API.checkStatus().then(online => {
     const dot = document.querySelector('.status-dot');
     const text = document.querySelector('.status-text');
@@ -30,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
       text.textContent = 'API Offline';
     }
   });
+
   navegar('dashboard');
 });
 
@@ -37,6 +91,7 @@ function navegar(page) {
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.getElementById('pageTitle').textContent = page === 'dashboard' ? 'Dashboard' : ENTITIES[page]?.labelPlural || page;
+  document.getElementById('pageSubtitle').textContent = SUBTITLES[page] || '';
   const btnNovo = document.getElementById('btnNovo');
   btnNovo.style.display = page === 'dashboard' ? 'none' : 'inline-flex';
   btnNovo.onclick = () => abrirModal(page);
@@ -45,7 +100,12 @@ function navegar(page) {
 
 async function carregarPagina(page) {
   const container = document.getElementById('pageContent');
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">Carregando...</div>';
+  container.innerHTML = `
+    <div class="skeleton-wrap">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-rows"></div>
+    </div>
+  `;
 
   if (page === 'dashboard') return carregarDashboard(container);
   return carregarTabela(page, container);
@@ -65,15 +125,18 @@ async function carregarDashboard(container) {
     const hoje = new Date().toISOString().split('T')[0];
     const hojeCount = data.filter(a => a.data && a.data.startsWith(hoje)).length;
 
-    container.innerHTML = `
-      <div class="stats-grid">
-        <div class="stat-card"><span class="stat-label">Total Agendamentos</span><span class="stat-value">${data.length}</span></div>
-        <div class="stat-card"><span class="stat-label">Pendentes</span><span class="stat-value">${pendentes}</span></div>
-        <div class="stat-card"><span class="stat-label">Hoje</span><span class="stat-value">${hojeCount}</span></div>
-        <div class="stat-card"><span class="stat-label">Médicos</span><span class="stat-value">${(medicos || []).length}</span></div>
-        <div class="stat-card"><span class="stat-label">Pacientes</span><span class="stat-value">${(pacientes || []).length}</span></div>
-        <div class="stat-card"><span class="stat-label">Serviços</span><span class="stat-value">${(servicos || []).length}</span></div>
+    const values = [data.length, pendentes, hojeCount, (medicos || []).length, (pacientes || []).length, (servicos || []).length];
+
+    const cards = STATS.map((s, i) => `
+      <div class="stat-card">
+        <div class="stat-icon ${s.tone}">${ICONS[s.icon]}</div>
+        <div class="stat-value">${values[i]}</div>
+        <div class="stat-label">${s.label}</div>
       </div>
+    `).join('');
+
+    container.innerHTML = `
+      <div class="stats-grid">${cards}</div>
       ${gerarTabelaAgendamentos(data.slice(0, 10))}
     `;
   } catch (err) {
@@ -85,9 +148,15 @@ async function carregarTabela(entity, container) {
   currentEntity = entity;
   try {
     const data = await API.get(entity) || [];
+    const body = data.length === 0
+      ? gerarEmptyState('Nenhum registro encontrado', 'Clique em "Novo" para adicionar o primeiro.')
+      : `<div class="card"><div class="card-body" id="tableContainer">${gerarTabela(entity, data)}</div></div>`;
     container.innerHTML = `
-      <div class="search-bar"><input type="text" placeholder="Buscar..." id="searchInput" oninput="filtrarTabela()"></div>
-      <div class="card"><div class="card-body" id="tableContainer">${gerarTabela(entity, data)}</div></div>
+      <div class="search-bar">
+        <span class="search-icon">${ICONS.search}</span>
+        <input type="text" placeholder="Buscar..." id="searchInput" oninput="filtrarTabela()">
+      </div>
+      ${body}
     `;
   } catch (err) {
     container.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--danger)">Erro ao carregar: ${err.message}</p></div></div>`;
@@ -96,23 +165,31 @@ async function carregarTabela(entity, container) {
 
 function gerarTabela(entity, data) {
   if (!data || data.length === 0) {
-    return `<div class="empty-state"><div class="empty-icon">📭</div><p>Nenhum registro encontrado</p></div>`;
+    return gerarEmptyState('Nenhum registro encontrado', 'Clique em "Novo" para adicionar o primeiro.');
   }
   const cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'created_at' && k !== 'updated_at');
   const headers = cols.map(c => `<th>${rotuloColuna(c)}</th>`).join('');
   const rows = data.map(row => {
     const cells = cols.map(c => `<td>${formatarCelula(c, row[c], row)}</td>`).join('');
     return `<tr><td class="actions-cell">
-      <button class="btn btn-sm btn-secondary" onclick="editarRegistro('${entity}','${row.id}')">✏️</button>
-      <button class="btn btn-sm btn-danger" onclick="excluirRegistro('${entity}','${row.id}')">🗑️</button>
+      <button class="btn-icon" onclick="editarRegistro('${entity}','${row.id}')" title="Editar">${ICONS.edit}</button>
+      <button class="btn-icon danger" onclick="excluirRegistro('${entity}','${row.id}')" title="Excluir">${ICONS.trash}</button>
     </td>${cells}</tr>`;
   }).join('');
-  return `<div style="overflow-x:auto"><table><thead><tr><th style="width:80px">Ações</th>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="table-wrapper"><table><thead><tr><th style="width:80px">Ações</th>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function gerarEmptyState(title, hint) {
+  return `<div class="empty-state">
+    <div class="empty-icon">${ICONS.activity}</div>
+    <p>${title}</p>
+    ${hint ? `<span>${hint}</span>` : ''}
+  </div>`;
 }
 
 function gerarTabelaAgendamentos(data) {
   if (!data || data.length === 0) {
-    return `<div class="card"><div class="card-body"><p style="text-align:center;color:var(--gray-400)">Nenhum agendamento</p></div></div>`;
+    return `<div class="card"><div class="card-body"><p style="text-align:center;color:var(--text-tertiary)">Nenhum agendamento</p></div></div>`;
   }
   const headers = ['Paciente', 'Telefone', 'Data', 'Hora', 'Status'];
   const rows = data.map(a => {
@@ -125,7 +202,12 @@ function gerarTabelaAgendamentos(data) {
       <td><span class="badge ${statusClass}">${a.status || 'PENDENTE'}</span></td>
     </tr>`;
   }).join('');
-  return `<div class="card"><div class="card-header">Últimos Agendamentos</div><div class="card-body" style="padding:0"><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div class="card">
+    <div class="card-header">Últimos Agendamentos</div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrapper"><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+    </div>
+  </div>`;
 }
 
 function rotuloColuna(key) {
@@ -144,9 +226,13 @@ function rotuloColuna(key) {
 function formatarCelula(col, val, row) {
   if (val === null || val === undefined) return '-';
   if (col === 'data' || col === 'data_nascimento') return formatarData(val);
-  if (col === 'pago' || col === 'ativo') return val ? '✅ Sim' : '❌ Não';
+  if (col === 'pago' || col === 'ativo') {
+    return val
+      ? '<span style="color:var(--success);display:inline-flex"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span> Sim'
+      : '<span style="color:var(--danger);display:inline-flex"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span> Não';
+  }
   if (col === 'status') {
-    const cls = `badge-${val.toLowerCase()}`;
+    const cls = `badge-${String(val).toLowerCase()}`;
     return `<span class="badge ${cls}">${val}</span>`;
   }
   if (col === 'valor' || col === 'preco') {
@@ -203,14 +289,14 @@ async function gerarFormulario(entity, data = {}) {
   const fields = getFormFields(entity);
   const selects = await getSelectData(entity);
   const html = fields.map(f => {
-    const val = data[f.key] || '';
+    const val = data[f.key] ?? '';
     if (f.type === 'select') {
       const options = (selects[f.selectKey] || []).map(s =>
-        `<option value="${s.id}" ${val === s.id ? 'selected' : ''}>${s.nome || s.label || s.id}</option>`
+        `<option value="${s.id}" ${String(val) === String(s.id) ? 'selected' : ''}>${s.nome || s.label || s.id}</option>`
       ).join('');
       return `
         <div class="form-group">
-          <label>${f.label}</label>
+          <label>${f.label}${f.required ? ' <span class="req">*</span>' : ''}</label>
           <select name="${f.key}" ${f.required ? 'required' : ''}>
             <option value="">Selecione...</option>
             ${options}
@@ -220,13 +306,13 @@ async function gerarFormulario(entity, data = {}) {
     if (f.type === 'textarea') {
       return `
         <div class="form-group">
-          <label>${f.label}</label>
+          <label>${f.label}${f.required ? ' <span class="req">*</span>' : ''}</label>
           <textarea name="${f.key}" ${f.required ? 'required' : ''}>${val}</textarea>
         </div>`;
     }
     return `
       <div class="form-group">
-        <label>${f.label}</label>
+        <label>${f.label}${f.required ? ' <span class="req">*</span>' : ''}</label>
         <input type="${f.type}" name="${f.key}" value="${val}" ${f.required ? 'required' : ''}>
       </div>`;
   }).join('');
@@ -279,8 +365,7 @@ async function getSelectData(entity) {
   if (entity === 'agendamentos') {
     try {
       const servicos = await API.get('servicos') || [];
-      const servicosOpts = servicos.map(s => ({ id: s.id, nome: s.nome }));
-      map.servicos = servicosOpts;
+      map.servicos = servicos.map(s => ({ id: s.id, nome: s.nome }));
     } catch {}
     map.status = [
       { id: 'PENDENTE', nome: 'Pendente' },
@@ -298,6 +383,11 @@ async function salvarRegistro() {
   const form = document.getElementById('formRegistro');
   const fd = new FormData(form);
   const data = Object.fromEntries(fd.entries());
+
+  // Campos vazios não são enviados para manter o valor original
+  for (const k of Object.keys(data)) {
+    if (data[k] === '') delete data[k];
+  }
 
   try {
     if (editId) {

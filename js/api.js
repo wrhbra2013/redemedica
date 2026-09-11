@@ -1,5 +1,5 @@
 const API = {
-  baseURL: 'https://api.projetosdinamicos.com.br',
+  baseURL: '',
   project: 'rede.medica',
 
   async request(method, table, data = null, id = null) {
