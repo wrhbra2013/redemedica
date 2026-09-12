@@ -17,9 +17,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
     </button>
     <span class="mobile-title">Rede.Médica</span>
-    <button class="btn btn-sm btn-primary mobile-btn-novo" onclick="abrirModal()" aria-label="Novo registro">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
+    <div class="mobile-actions">
+      <button class="theme-toggle mobile-theme" onclick="toggleTheme()" aria-label="Alternar tema"></button>
+      <button class="btn btn-sm btn-primary mobile-btn-novo" id="mobileBtnNovo" onclick="abrirModal()" aria-label="Novo registro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
   </div>
 
   <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
@@ -33,13 +36,18 @@
         <h1>Rede.Médica</h1>
         <span class="subtitle">Agendamentos</span>
       </div>
+      <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Fechar menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
     </div>
     <ul class="nav-list">
-      <li class="nav-section-label">Menu</li>
+      <li class="nav-section-label">Visão Geral</li>
       <li><a href="#" class="nav-item active" data-page="dashboard"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span> <span>Dashboard</span></a></li>
+      <li class="nav-section-label">Agenda</li>
       <li><a href="#" class="nav-item" data-page="agendamentos"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg></span> <span>Agendamentos</span></a></li>
       <li><a href="#" class="nav-item" data-page="medicos"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6M10 6h4M12 2v4"/><circle cx="12" cy="13" r="4"/><path d="M6 21c0-3 2.7-5 6-5s6 2 6 5"/></svg></span> <span>Médicos</span></a></li>
       <li><a href="#" class="nav-item" data-page="pacientes"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 21c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15.6c2.9-.3 5.5 1.6 5.5 4.4"/></svg></span> <span>Pacientes</span></a></li>
+      <li class="nav-section-label">Catálogo</li>
       <li><a href="#" class="nav-item" data-page="servicos"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span> <span>Serviços</span></a></li>
       <li><a href="#" class="nav-item" data-page="categorias"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24H5a2 2 0 0 0-2 2v4.59A2 2 0 0 0 3.59 11l9.58 9.59a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span> <span>Categorias</span></a></li>
     </ul>
@@ -48,17 +56,21 @@
         <span class="status-dot"></span>
         <span class="status-text">Conectando...</span>
       </div>
+      <span class="sidebar-meta">v1.0.0</span>
     </div>
   </nav>
 
   <main class="content">
     <header class="content-header">
       <div class="header-left">
-        <h2 id="pageTitle">Dashboard</h2>
-        <p class="subtitle" id="pageSubtitle">Visão geral dos agendamentos</p>
+        <div class="page-icon" id="pageIcon"></div>
+        <div class="header-titles">
+          <h2 id="pageTitle">Dashboard</h2>
+          <p class="subtitle" id="pageSubtitle">Visão geral dos agendamentos</p>
+        </div>
       </div>
       <div class="header-right">
-        <button class="btn-icon theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Alternar tema"></button>
+        <button class="theme-toggle desktop-theme" onclick="toggleTheme()" aria-label="Alternar tema"></button>
         <button class="btn btn-primary" id="btnNovo" onclick="abrirModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Novo
@@ -68,6 +80,33 @@
 
     <div class="page-content" id="pageContent">
     </div>
+
+    <footer class="page-footer">
+      <div class="footer-brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="footer-brand-text">
+          <span class="footer-name">Rede.Médica</span>
+          <span class="footer-tagline">Agendamento médico por assinatura</span>
+        </div>
+      </div>
+      <div class="footer-contact">
+        <span class="footer-label">Consulta e agendamento</span>
+        <a class="footer-link" href="tel:+5511999999999" title="Ligar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Telefone
+        </a>
+        <a class="footer-link wa" href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20gostaria%20de%20agendar%20uma%20consulta." target="_blank" rel="noopener" title="WhatsApp">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+          WhatsApp
+        </a>
+      </div>
+      <div class="footer-meta">
+        <span class="footer-version">v1.0.0</span>
+        <span class="footer-copy">© 2026 Rede.Médica</span>
+      </div>
+    </footer>
   </main>
 
   <div class="modal-overlay" id="modalOverlay" onclick="fecharModal()">
