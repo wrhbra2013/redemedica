@@ -25,6 +25,20 @@ const API = {
   update(table, id, data) { return this.request('PUT', table, data, id); },
   delete(table, id) { return this.request('DELETE', table, null, id); },
 
+  async getTables() {
+    const res = await fetch(`${this.baseURL}/api/tables`);
+    const text = await res.text();
+    if (!res.ok) throw new Error(text || 'Erro ao listar tabelas');
+    try { return JSON.parse(text); } catch { return []; }
+  },
+
+  async getTableMeta(table) {
+    const res = await fetch(`${this.baseURL}/api/table/${table}`);
+    const text = await res.text();
+    if (!res.ok) throw new Error(text || 'Erro ao carregar metadados');
+    return JSON.parse(text);
+  },
+
   async checkStatus() {
     try {
       const res = await fetch(`${this.baseURL}/health`);

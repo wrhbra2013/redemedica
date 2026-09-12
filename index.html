@@ -12,56 +12,64 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="mobile-header">
-    <button class="hamburger" onclick="toggleSidebar()" aria-label="Abrir menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-    </button>
-    <span class="mobile-title">Rede.Médica</span>
-    <div class="mobile-actions">
-      <button class="theme-toggle mobile-theme" onclick="toggleTheme()" aria-label="Alternar tema"></button>
-      <button class="btn btn-sm btn-primary mobile-btn-novo" id="mobileBtnNovo" onclick="abrirModal()" aria-label="Novo registro">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <button class="hamburger" onclick="toggleDrawer()" aria-label="Abrir menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
+
+      <a class="brand" href="#" onclick="navegar('dashboard');return false;" aria-label="Ir para o início">
+        <span class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span>
+        <span class="brand-text">Rede.Médica</span>
+      </a>
+
+      <nav class="top-nav" id="topNav" aria-label="Navegação principal"></nav>
+
+      <div class="header-actions">
+        <div class="api-pill" id="apiPill" title="Clique para reconectar caso offline">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="api-pill-text" id="apiStatusText">Conectando...</span>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema"></button>
+        <button class="btn btn-primary header-btn" id="btnNovo" onclick="abrirModal()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="btn-label">Novo</span>
+        </button>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+  <div class="drawer-backdrop" id="drawerBackdrop" onclick="toggleDrawer()"></div>
 
-  <nav class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <div class="brand-mark">
+  <nav class="drawer" id="drawer" aria-label="Menu">
+    <div class="drawer-header">
+      <span class="brand-mark">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      </div>
-      <div class="brand-text">
-        <h1>Rede.Médica</h1>
-        <span class="subtitle">Agendamentos</span>
-      </div>
-      <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Fechar menu">
+      </span>
+      <span class="drawer-brand-text">
+        <span class="drawer-title">Rede.Médica</span>
+        <span class="drawer-subtitle">Agendamentos</span>
+      </span>
+      <button class="drawer-close" onclick="toggleDrawer()" aria-label="Fechar menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
-    <ul class="nav-list">
-      <li class="nav-section-label">Visão Geral</li>
-      <li><a href="#" class="nav-item active" data-page="dashboard"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span> <span>Dashboard</span></a></li>
-      <li class="nav-section-label">Agenda</li>
-      <li><a href="#" class="nav-item" data-page="agendamentos"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg></span> <span>Agendamentos</span></a></li>
-      <li><a href="#" class="nav-item" data-page="medicos"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6M10 6h4M12 2v4"/><circle cx="12" cy="13" r="4"/><path d="M6 21c0-3 2.7-5 6-5s6 2 6 5"/></svg></span> <span>Médicos</span></a></li>
-      <li><a href="#" class="nav-item" data-page="pacientes"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 21c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15.6c2.9-.3 5.5 1.6 5.5 4.4"/></svg></span> <span>Pacientes</span></a></li>
-      <li class="nav-section-label">Catálogo</li>
-      <li><a href="#" class="nav-item" data-page="servicos"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span> <span>Serviços</span></a></li>
-      <li><a href="#" class="nav-item" data-page="categorias"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24H5a2 2 0 0 0-2 2v4.59A2 2 0 0 0 3.59 11l9.58 9.59a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span> <span>Categorias</span></a></li>
-    </ul>
-    <div class="sidebar-footer">
-      <div class="api-status" id="apiStatus">
-        <span class="status-dot"></span>
-        <span class="status-text">Conectando...</span>
+
+    <ul class="drawer-nav" id="drawerNav"></ul>
+
+    <div class="drawer-footer">
+      <div class="api-pill" id="apiPillDrawer" title="Clique para reconectar caso offline">
+        <span class="status-dot" id="statusDotDrawer"></span>
+        <span class="api-pill-text" id="apiStatusTextDrawer">Conectando...</span>
       </div>
-      <span class="sidebar-meta">v1.0.0</span>
+      <span class="drawer-meta">v1.0.0</span>
     </div>
   </nav>
 
   <main class="content">
-    <header class="content-header">
+    <div class="content-header">
       <div class="header-left">
         <div class="page-icon" id="pageIcon"></div>
         <div class="header-titles">
@@ -69,14 +77,7 @@
           <p class="subtitle" id="pageSubtitle">Visão geral dos agendamentos</p>
         </div>
       </div>
-      <div class="header-right">
-        <button class="theme-toggle desktop-theme" onclick="toggleTheme()" aria-label="Alternar tema"></button>
-        <button class="btn btn-primary" id="btnNovo" onclick="abrirModal()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Novo
-        </button>
-      </div>
-    </header>
+    </div>
 
     <div class="page-content" id="pageContent">
     </div>

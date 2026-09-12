@@ -1,9 +1,13 @@
-const pages = ['dashboard', 'agendamentos', 'medicos', 'pacientes', 'servicos', 'categorias'];
-let currentPage = 'dashboard';
-let editId = null;
-let currentEntity = '';
-let categoriasCache = [];
-let pendingCategoria = null;
+const PAGES = {
+  dashboard: { label: 'Dashboard', icon: 'grid', section: 'Visão Geral' },
+  agendamentos: { label: 'Agendamentos', icon: 'calendar', section: 'Agenda' },
+  medicos: { label: 'Médicos', icon: 'stethoscope', section: 'Agenda' },
+  pacientes: { label: 'Pacientes', icon: 'users', section: 'Agenda' },
+  servicos: { label: 'Serviços', icon: 'activity', section: 'Catálogo' },
+  categorias: { label: 'Categorias', icon: 'category', section: 'Catálogo' },
+};
+
+const SECTION_ORDER = ['Visão Geral', 'Agenda', 'Catálogo', 'Outras tabelas'];
 
 const ENTITIES = {
   agendamentos: { label: 'Agendamento', labelPlural: 'Agendamentos' },
@@ -22,7 +26,13 @@ const SUBTITLES = {
   categorias: 'Registre e gerencie as categorias dos profissionais',
 };
 
+const ESCAPER = {
+  '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;',
+};
+const esc = v => String(v ?? '').replace(/[<>&"']/g, c => ESCAPER[c]);
+
 const ICONS = {
+  chevronDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
@@ -59,6 +69,18 @@ const PAGE_ICONS = {
   categorias: 'category',
 };
 
+let currentPage = 'dashboard';
+let editId = null;
+let currentEntity = '';
+let categoriasCache = [];
+let pendingCategoria = null;
+let apiOnline = false;
+let navMeta = [];
+let navItemIndex = {};
+
+// ---------------------------------------------------------------
+// Tema
+// ---------------------------------------------------------------
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   try { localStorage.setItem('redemedica-theme', theme); } catch {}
@@ -79,37 +101,228 @@ function toggleTheme() {
   setTheme(cur);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
+// ---------------------------------------------------------------
+// Navegação (menu inteligente)
+// ---------------------------------------------------------------
+function nomeBonitoDaTabela(t) {
+  return t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' ').toLowerCase();
+}
 
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.addEventListener('click', e => {
-      e.preventDefault();
-      const page = el.dataset.page;
-      navegar(page);
-      fecharSidebarMobile();
+function montarNavMeta(tables) {
+  const base = Object.keys(PAGES);
+  const extras = (tables || [])
+    .filter(t => !t.builtin && !base.includes(t.name))
+    .map(t => t.name)
+    .sort();
+  navMeta = [];
+  SECTION_ORDER.forEach((section, si) => {
+    const ids = [];
+    if (section !== 'Outras tabelas') {
+      ids.push(...Object.keys(PAGES).filter(id => PAGES[id].section === section));
+    } else {
+      ids.push(...extras);
+    }
+    if (!ids.length) return;
+    ids.forEach(id => {
+      const isExtras = section === 'Outras tabelas';
+      navMeta.push({
+        id,
+        label: isExtras ? nomeBonitoDaTabela(id) : PAGES[id].label,
+        icon: isExtras ? 'grid' : PAGES[id].icon,
+        section,
+        extras: isExtras,
+      });
+      if (isExtras && !ENTITIES[id]) {
+        const l = esc(nomeBonitoDaTabela(id));
+        ENTITIES[id] = { label: l, labelPlural: l };
+      }
     });
   });
+  navItemIndex = {};
+  navMeta.forEach((m, i) => { navItemIndex[m.id] = i; });
+}
 
-  API.checkStatus().then(online => {
-    const dot = document.querySelector('.status-dot');
-    const text = document.querySelector('.status-text');
-    if (online) {
-      dot.className = 'status-dot online';
-      text.textContent = 'API Online';
-    } else {
-      dot.className = 'status-dot offline';
-      text.textContent = 'API Offline';
-    }
+function criarNavItem(meta) {
+  const a = document.createElement('a');
+  a.href = '#';
+  a.className = 'nav-item' + (currentPage === meta.id ? ' active' : '');
+  a.dataset.page = meta.id;
+  a.title = meta.label;
+  a.innerHTML = `<span class="icon">${ICONS[meta.icon] || ICONS.grid}</span><span class="nav-label">${esc(meta.label)}</span><span class="nav-count" hidden></span>`;
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    navegar(meta.id);
+    fecharDrawer();
+    fecharMore();
   });
+  return a;
+}
 
-  navegar('dashboard');
-});
+function renderTopNav() {
+  const nav = document.getElementById('topNav');
+  nav.innerHTML = '';
+  nav.dataset.count = String(navMeta.length);
+  navMeta.forEach(m => nav.appendChild(criarNavItem(m)));
+  const moreWrap = document.createElement('div');
+  moreWrap.className = 'nav-more hidden';
+  moreWrap.innerHTML = `<button type="button" class="nav-more-toggle" onclick="toggleMore(event)" aria-label="Mais itens"><span class="nav-label">Mais</span><span class="icon chev">${ICONS.chevronDown}</span></button><div class="more-drop hidden" id="navMoreDrop"></div>`;
+  nav.appendChild(moreWrap);
+}
 
+function renderDrawerNav() {
+  const ul = document.getElementById('drawerNav');
+  ul.innerHTML = '';
+  let lastSection = '';
+  navMeta.forEach(m => {
+    if (m.section !== lastSection) {
+      const li = document.createElement('li');
+      li.className = 'nav-section-label';
+      li.textContent = m.section;
+      ul.appendChild(li);
+      lastSection = m.section;
+    }
+    const li = document.createElement('li');
+    li.appendChild(criarNavItem(m));
+    ul.appendChild(li);
+  });
+}
+
+function renderNav() {
+  renderTopNav();
+  renderDrawerNav();
+  ajustarOverflowNav();
+}
+
+function ajustarOverflowNav() {
+  const nav = document.getElementById('topNav');
+  const moreWrap = nav.querySelector('.nav-more');
+  const drop = document.getElementById('navMoreDrop');
+  if (!nav || !moreWrap || window.innerWidth < 768) return;
+  drop.innerHTML = '';
+  moreWrap.classList.add('hidden');
+  nav.querySelectorAll(':scope > .nav-item').forEach(i => i.classList.remove('hidden'));
+
+  if (nav.scrollWidth <= nav.clientWidth) return;
+
+  const items = [...nav.querySelectorAll(':scope > .nav-item')];
+  for (const it of [...items].reverse()) {
+    if (nav.scrollWidth <= nav.clientWidth) break;
+    it.classList.add('hidden');
+    const meta = navMeta[navItemIndex[it.dataset.page]];
+    const clone = criarNavItem(meta);
+    clone.addEventListener('click', () => fecharMore());
+    drop.appendChild(clone);
+  }
+  moreWrap.classList.remove('hidden');
+  nav.classList.add('has-more');
+}
+
+function fecharMore() {
+  document.getElementById('navMoreDrop')?.classList.add('hidden');
+}
+
+function toggleMore(e) {
+  if (e) e.stopPropagation();
+  const drop = document.getElementById('navMoreDrop');
+  drop.classList.toggle('hidden');
+}
+
+function toggleDrawer() {
+  if (window.innerWidth >= 768) return;
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('drawerBackdrop').classList.toggle('open');
+}
+
+function fecharDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerBackdrop').classList.remove('open');
+}
+
+// ---------------------------------------------------------------
+// Status da API + badges (contagens)
+// ---------------------------------------------------------------
+function setApiEstado(estado) {
+  document.querySelectorAll('.api-pill').forEach(pill => {
+    pill.classList.toggle('offline', estado === 'offline');
+    pill.classList.toggle('connecting', estado === 'connecting');
+  });
+  const estados = {
+    online: ['online', 'API Online'],
+    offline: ['offline', 'API Offline — toque para reconectar'],
+    connecting: ['connecting', 'Conectando...'],
+  };
+  const [cls, txt] = (estados[estado] || estados.connecting);
+  document.querySelectorAll('.status-dot').forEach(d => { d.className = 'status-dot ' + cls; });
+  document.querySelectorAll('.api-pill-text').forEach(t => { t.textContent = txt; });
+}
+
+async function checarStatusApi(force = false) {
+  setApiEstado('connecting');
+  const ok = await API.checkStatus();
+  const mudou = ok !== apiOnline;
+  apiOnline = ok;
+  if (ok) {
+    setApiEstado('online');
+    if (mudou || force) {
+      await refreshMenu();
+      carregarContagens();
+    } else {
+      carregarContagens();
+    }
+  } else {
+    setApiEstado('offline');
+  }
+}
+
+async function refreshMenu() {
+  let tables = [];
+  try { tables = await API.getTables(); } catch {}
+  montarNavMeta(tables);
+  renderNav();
+}
+
+async function carregarContagens() {
+  if (!apiOnline) return;
+  const counts = {};
+  await Promise.all(navMeta.map(async m => {
+    if (m.id === 'dashboard') return;
+    try {
+      const rows = await API.get(m.id);
+      counts[m.id] = Array.isArray(rows) ? rows.length : 0;
+    } catch { counts[m.id] = 0; }
+  }));
+  atualizarBadges(counts);
+}
+
+async function atualizarContagem(entity) {
+  if (!apiOnline || entity === 'dashboard') return;
+  try {
+    const rows = await API.get(entity);
+    const n = Array.isArray(rows) ? rows.length : 0;
+    document.querySelectorAll(`.nav-item[data-page="${entity}"] .nav-count`).forEach(b => {
+      b.textContent = n;
+      b.hidden = !(n > 0);
+    });
+  } catch {}
+}
+
+function atualizarBadges(counts) {
+  document.querySelectorAll('.nav-count').forEach(b => {
+    const page = b.closest('.nav-item').dataset.page;
+    const n = counts[page] || 0;
+    b.textContent = n;
+    b.hidden = !(apiOnline && n > 0);
+  });
+}
+
+// ---------------------------------------------------------------
+// Navegação entre páginas
+// ---------------------------------------------------------------
 function navegar(page) {
   currentPage = page;
+  currentEntity = ENTITIES[page] ? page : '';
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
-  document.getElementById('pageTitle').textContent = page === 'dashboard' ? 'Dashboard' : ENTITIES[page]?.labelPlural || page;
+  document.getElementById('pageTitle').textContent = page === 'dashboard' ? 'Dashboard' : (ENTITIES[page]?.labelPlural || nomeBonitoDaTabela(page));
   document.getElementById('pageSubtitle').textContent = SUBTITLES[page] || '';
   const iconEl = document.getElementById('pageIcon');
   if (iconEl) iconEl.innerHTML = ICONS[PAGE_ICONS[page] || 'grid'];
@@ -117,8 +330,6 @@ function navegar(page) {
   const btnNovo = document.getElementById('btnNovo');
   btnNovo.style.display = showNovo ? 'inline-flex' : 'none';
   btnNovo.onclick = () => abrirModal(page);
-  const btnMobileNovo = document.getElementById('mobileBtnNovo');
-  if (btnMobileNovo) btnMobileNovo.style.display = showNovo ? 'flex' : 'none';
   carregarPagina(page);
 }
 
@@ -130,28 +341,32 @@ async function carregarPagina(page) {
       <div class="skeleton skeleton-rows"></div>
     </div>
   `;
-
   if (page === 'dashboard') return carregarDashboard(container);
   return carregarTabela(page, container);
 }
 
 async function carregarDashboard(container) {
   try {
-    const [agendamentos, medicos, pacientes, servicos, categorias] = await Promise.all([
-      API.get('agendamentos'),
-      API.get('medicos'),
-      API.get('pacientes'),
-      API.get('servicos'),
-      API.get('categorias'),
-    ]);
-    categoriasCache = categorias || [];
+    const lista = navMeta.filter(m => m.id !== 'dashboard').map(m => m.id);
+    const res = await Promise.all(lista.map(id => API.get(id).catch(() => [])));
+    const dados = {};
+    lista.forEach((id, i) => { dados[id] = res[i] || []; });
+    categoriasCache = dados.categorias || [];
 
-    const data = agendamentos || [];
-    const pendentes = data.filter(a => a.status === 'PENDENTE' || !a.status).length;
+    const agendamentos = dados.agendamentos || [];
+    const pendentes = agendamentos.filter(a => a.status === 'PENDENTE' || !a.status).length;
     const hoje = new Date().toISOString().split('T')[0];
-    const hojeCount = data.filter(a => a.data && a.data.startsWith(hoje)).length;
+    const hojeCount = agendamentos.filter(a => a.data && a.data.startsWith(hoje)).length;
 
-    const values = [data.length, pendentes, hojeCount, (medicos || []).length, (pacientes || []).length, (servicos || []).length, categoriasCache.length];
+    const values = [
+      agendamentos.length,
+      pendentes,
+      hojeCount,
+      (dados.medicos || []).length,
+      (dados.pacientes || []).length,
+      (dados.servicos || []).length,
+      categoriasCache.length,
+    ];
 
     const cards = STATS.map((s, i) => `
       <div class="stat-card">
@@ -163,11 +378,11 @@ async function carregarDashboard(container) {
 
     container.innerHTML = `
       <div class="stats-grid">${cards}</div>
-      ${gerarPainelCategorias(categoriasCache, medicos)}
-      ${gerarTabelaAgendamentos(data.slice(0, 10))}
+      ${gerarPainelCategorias(categoriasCache, dados.medicos || [])}
+      ${gerarTabelaAgendamentos(agendamentos.slice(0, 10))}
     `;
   } catch (err) {
-    container.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--danger)">Erro ao carregar: ${err.message}</p></div></div>`;
+    container.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--danger)">Erro ao carregar: ${esc(err.message)}</p></div></div>`;
   }
 }
 
@@ -181,11 +396,11 @@ function gerarPainelCategorias(categorias, medicos) {
   }
   const cards = lista.map(c => {
     const count = (medicos || []).filter(m => m.categoria === c.id).length;
-    return `<button type="button" class="category-card" onclick="abrirCategoria('${c.id}')" title="Ver profissionais desta categoria">
+    return `<button type="button" class="category-card" onclick="abrirCategoria('${esc(c.id)}')" title="Ver profissionais desta categoria">
       <div class="category-icon">${ICONS.category}</div>
       <div class="category-info">
-        <div class="category-name">${c.nome}</div>
-        <div class="category-desc">${c.descricao || 'Profissionais desta categoria'}</div>
+        <div class="category-name">${esc(c.nome)}</div>
+        <div class="category-desc">${esc(c.descricao || 'Profissionais desta categoria')}</div>
       </div>
       <div class="category-count"><strong>${count}</strong><span>profissional(is)</span></div>
     </button>`;
@@ -201,19 +416,20 @@ function abrirCategoria(categoriaId) {
   navegar('medicos');
 }
 
+// ---------------------------------------------------------------
+// Tabelas e CRUD
+// ---------------------------------------------------------------
 async function carregarTabela(entity, container) {
   currentEntity = entity;
   try {
     const data = await API.get(entity) || [];
     let catFilter = '';
     if (entity === 'medicos') {
-      try {
-        categoriasCache = await API.get('categorias') || [];
-      } catch {}
+      try { categoriasCache = await API.get('categorias') || []; } catch {}
       catFilter = `<div class="filter-categoria">
         <select id="filterCategoria" onchange="filtrarTabela()">
           <option value="">Todas as categorias</option>
-          ${categoriasCache.map(c => `<option value="${c.id}">${c.nome}</option>`).join('')}
+          ${categoriasCache.map(c => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')}
         </select>
       </div>`;
     }
@@ -237,7 +453,7 @@ async function carregarTabela(entity, container) {
       filtrarTabela();
     }
   } catch (err) {
-    container.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--danger)">Erro ao carregar: ${err.message}</p></div></div>`;
+    container.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--danger)">Erro ao carregar: ${esc(err.message)}</p></div></div>`;
   }
 }
 
@@ -252,10 +468,10 @@ function gerarTabela(entity, data) {
   const rows = data.map(row => {
     const cells = cols.map(c => `<td>${formatarCelula(c, row[c], row)}</td>`).join('');
     const contato = isMedicos ? `<td>${gerarContato(row)}</td>` : '';
-    const catAttr = isMedicos ? ` data-categoria="${row.categoria || ''}"` : '';
+    const catAttr = isMedicos ? ` data-categoria="${esc(row.categoria || '')}"` : '';
     return `<tr${catAttr}><td class="actions-cell">
-      <button class="btn-icon" onclick="editarRegistro('${entity}','${row.id}')" title="Editar">${ICONS.edit}</button>
-      <button class="btn-icon danger" onclick="excluirRegistro('${entity}','${row.id}')" title="Excluir">${ICONS.trash}</button>
+      <button class="btn-icon" onclick="editarRegistro('${entity}','${esc(row.id)}')" title="Editar">${ICONS.edit}</button>
+      <button class="btn-icon danger" onclick="excluirRegistro('${entity}','${esc(row.id)}')" title="Excluir">${ICONS.trash}</button>
     </td>${cells}${contato}</tr>`;
   }).join('');
   return `<div class="table-wrapper"><table><thead><tr><th style="width:80px">Ações</th>${headers}${extraHeader}</tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -265,8 +481,8 @@ function gerarContato(row) {
   const tel = String(row.telefone || '').replace(/\D/g, '');
   const zap = String(row.whatsapp || '').replace(/\D/g, '');
   const parts = [];
-  if (tel) parts.push(`<a class="contact-chip" href="tel:+${tel}" title="Ligar ${row.telefone}">${ICONS.phone}</a>`);
-  if (zap) parts.push(`<a class="contact-chip wa" href="https://wa.me/${zap}?text=${encodeURIComponent('Olá, gostaria de agendar uma consulta.')}" target="_blank" rel="noopener" title="WhatsApp ${row.whatsapp}">${ICONS.whatsapp}</a>`);
+  if (tel) parts.push(`<a class="contact-chip" href="tel:+${tel}" title="Ligar ${esc(row.telefone)}">${ICONS.phone}</a>`);
+  if (zap) parts.push(`<a class="contact-chip wa" href="https://wa.me/${zap}?text=${encodeURIComponent('Olá, gostaria de agendar uma consulta.')}" target="_blank" rel="noopener" title="WhatsApp ${esc(row.whatsapp)}">${ICONS.whatsapp}</a>`);
   if (!parts.length) return '<span style="color:var(--text-tertiary)">—</span>';
   return `<div class="contact-group">${parts.join('')}</div>`;
 }
@@ -274,8 +490,8 @@ function gerarContato(row) {
 function gerarEmptyState(title, hint) {
   return `<div class="empty-state">
     <div class="empty-icon">${ICONS.activity}</div>
-    <p>${title}</p>
-    ${hint ? `<span>${hint}</span>` : ''}
+    <p>${esc(title)}</p>
+    ${hint ? `<span>${esc(hint)}</span>` : ''}
   </div>`;
 }
 
@@ -285,13 +501,13 @@ function gerarTabelaAgendamentos(data) {
   }
   const headers = ['Paciente', 'Telefone', 'Data', 'Hora', 'Status'];
   const rows = data.map(a => {
-    const statusClass = `badge-${(a.status || 'pendente').toLowerCase()}`;
+    const statusClass = `badge-${String(a.status || 'pendente').toLowerCase()}`;
     return `<tr>
-      <td>${a.cliente || '-'}</td>
-      <td>${a.telefone || '-'}</td>
+      <td>${esc(a.cliente || '-')}</td>
+      <td>${esc(a.telefone || '-')}</td>
       <td>${formatarData(a.data)}</td>
-      <td>${a.hora || '-'}</td>
-      <td><span class="badge ${statusClass}">${a.status || 'PENDENTE'}</span></td>
+      <td>${esc(a.hora || '-')}</td>
+      <td><span class="badge ${statusClass}">${esc(a.status || 'PENDENTE')}</span></td>
     </tr>`;
   }).join('');
   return `<div class="card">
@@ -321,11 +537,15 @@ function formatarCelula(col, val, row) {
   if (col === 'whatsapp') {
     const digits = String(val).replace(/\D/g, '');
     if (!digits) return '-';
-    return `<a class="contact-chip wa" href="https://wa.me/${digits}?text=${encodeURIComponent('Olá, gostaria de agendar uma consulta.')}" target="_blank" rel="noopener" title="WhatsApp: ${val}">${ICONS.whatsapp}</a>`;
+    return `<a class="contact-chip wa" href="https://wa.me/${digits}?text=${encodeURIComponent('Olá, gostaria de agendar uma consulta.')}" target="_blank" rel="noopener" title="WhatsApp: ${esc(val)}">${ICONS.whatsapp}</a>`;
   }
   if (col === 'categoria') {
     const cat = categoriasCache.find(c => c.id === val);
-    return cat ? cat.nome : (val || '-');
+    return cat ? esc(cat.nome) : (val ? esc(val) : '-');
+  }
+  if (col === 'telefone') {
+    const digits = String(val).replace(/\D/g, '');
+    return digits ? `<a href="tel:+${digits}">${esc(val)}</a>` : '-';
   }
   if (col === 'pago' || col === 'ativo') {
     return val
@@ -334,22 +554,22 @@ function formatarCelula(col, val, row) {
   }
   if (col === 'status') {
     const cls = `badge-${String(val).toLowerCase()}`;
-    return `<span class="badge ${cls}">${val}</span>`;
+    return `<span class="badge ${cls}">${esc(val)}</span>`;
   }
   if (col === 'valor' || col === 'preco') {
     const n = parseFloat(val);
-    return isNaN(n) ? val : `R$ ${n.toFixed(2)}`;
+    return isNaN(n) ? esc(val) : `R$ ${n.toFixed(2)}`;
   }
   if (col === 'medico_id' || col === 'paciente_id' || col === 'servico_id' || col === 'servico') {
-    return val?.substring(0, 8) + '...' || '-';
+    return esc(String(val || '').substring(0, 8) + '...') || '-';
   }
-  return val;
+  return esc(val);
 }
 
 function formatarData(str) {
   if (!str) return '-';
   const d = new Date(str);
-  return isNaN(d.getTime()) ? str : d.toLocaleDateString('pt-BR');
+  return isNaN(d.getTime()) ? esc(str) : d.toLocaleDateString('pt-BR');
 }
 
 function filtrarTabela() {
@@ -362,6 +582,9 @@ function filtrarTabela() {
   });
 }
 
+// ---------------------------------------------------------------
+// Modal / Formulários (dinâmicos para tabelas da API)
+// ---------------------------------------------------------------
 async function abrirModal(entity) {
   const entityName = entity || currentPage;
   if (entityName === 'dashboard') return;
@@ -390,18 +613,26 @@ function fecharModal() {
 }
 
 async function gerarFormulario(entity, data = {}) {
-  const fields = getFormFields(entity);
+  let fields = getFormFields(entity);
+  if (!fields.length) {
+    const metaFields = await gerarCamposGenericos(entity);
+    fields = metaFields.length ? metaFields : [
+      { key: 'nome', label: 'Nome', type: 'text', required: true },
+      { key: 'descricao', label: 'Descrição', type: 'textarea' },
+      { key: 'ativo', label: 'Ativo', type: 'select', selectKey: 'ativo', required: false },
+    ];
+  }
   const selects = await getSelectData(entity);
   const html = fields.map(f => {
     const val = data[f.key] ?? '';
     if (f.type === 'select') {
       const options = (selects[f.selectKey] || []).map(s =>
-        `<option value="${s.id}" ${String(val) === String(s.id) ? 'selected' : ''}>${s.nome || s.label || s.id}</option>`
+        `<option value="${esc(s.id)}" ${String(val) === String(s.id) ? 'selected' : ''}>${esc(s.nome || s.label || s.id)}</option>`
       ).join('');
       return `
         <div class="form-group">
-          <label>${f.label}${f.required ? ' <span class="req">*</span>' : ''}</label>
-          <select name="${f.key}" ${f.required ? 'required' : ''}>
+          <label>${esc(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>
+          <select name="${esc(f.key)}" ${f.required ? 'required' : ''}>
             <option value="">Selecione...</option>
             ${options}
           </select>
@@ -410,25 +641,38 @@ async function gerarFormulario(entity, data = {}) {
     if (f.type === 'textarea') {
       return `
         <div class="form-group">
-          <label>${f.label}${f.required ? ' <span class="req">*</span>' : ''}</label>
-          <textarea name="${f.key}" ${f.required ? 'required' : ''}>${val}</textarea>
+          <label>${esc(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>
+          <textarea name="${esc(f.key)}" ${f.required ? 'required' : ''}>${esc(val)}</textarea>
         </div>`;
     }
     return `
       <div class="form-group">
-        <label>${f.label}${f.required ? ' <span class="req">*</span>' : ''}</label>
-        <input type="${f.type}" name="${f.key}" value="${val}" ${f.required ? 'required' : ''}>
+        <label>${esc(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>
+        <input type="${f.type}" name="${esc(f.key)}" value="${esc(val)}" ${f.required ? 'required' : ''}>
       </div>`;
   }).join('');
   return `<form id="formRegistro" onsubmit="return false">${html}</form>`;
 }
 
+async function gerarCamposGenericos(entity) {
+  try {
+    const meta = await API.getTableMeta(entity);
+    const cols = Array.isArray(meta.columns) ? meta.columns : [];
+    return cols
+      .filter(c => c !== 'id' && c !== 'created_at' && c !== 'updated_at')
+      .map(c => ({ key: c, label: rotuloColuna(c), type: tipoCampoGenerico(c) }));
+  } catch { return []; }
+}
+
+function tipoCampoGenerico(c) {
+  if (/data_nascimento|data$/.test(c)) return 'date';
+  if (/hora$/.test(c)) return 'time';
+  if (/(preco|valor|custo|taxa|duracao_minutos)$/.test(c)) return 'number';
+  if (/(observaco|descricao|comentario|texto|mensagem)$/.test(c)) return 'textarea';
+  return 'text';
+}
+
 function getFormFields(entity) {
-  const base = [
-    { key: 'nome', label: 'Nome', type: 'text', required: true },
-    { key: 'telefone', label: 'Telefone', type: 'text', required: false },
-    { key: 'email', label: 'Email', type: 'email', required: false },
-  ];
   const fields = {
     agendamentos: [
       { key: 'cliente', label: 'Nome do Paciente', type: 'text', required: true },
@@ -437,9 +681,7 @@ function getFormFields(entity) {
       { key: 'data', label: 'Data', type: 'date', required: true },
       { key: 'hora', label: 'Hora', type: 'time', required: true },
       { key: 'servico', label: 'Serviço', type: 'select', selectKey: 'servicos', required: false },
-      {
-        key: 'status', label: 'Status', type: 'select', selectKey: 'status', required: false,
-      },
+      { key: 'status', label: 'Status', type: 'select', selectKey: 'status', required: false },
       { key: 'observacoes', label: 'Observações', type: 'textarea', required: false },
     ],
     medicos: [
@@ -471,7 +713,7 @@ function getFormFields(entity) {
       { key: 'ativo', label: 'Ativo', type: 'select', selectKey: 'ativo', required: false },
     ],
   };
-  return fields[entity] || base;
+  return fields[entity] || [];
 }
 
 async function getSelectData(entity) {
@@ -489,17 +731,13 @@ async function getSelectData(entity) {
     ];
   }
   if (entity === 'medicos') {
-    try {
-      categoriasCache = await API.get('categorias') || [];
-    } catch {}
+    try { categoriasCache = await API.get('categorias') || []; } catch {}
     map.categorias = categoriasCache.map(c => ({ id: c.id, nome: c.nome }));
   }
-  if (entity === 'servicos' || entity === 'categorias') {
-    map.ativo = [
-      { id: '1', nome: 'Sim' },
-      { id: '0', nome: 'Não' },
-    ];
-  }
+  map.ativo = [
+    { id: '1', nome: 'Sim' },
+    { id: '0', nome: 'Não' },
+  ];
   return map;
 }
 
@@ -510,7 +748,6 @@ async function salvarRegistro() {
   const fd = new FormData(form);
   const data = Object.fromEntries(fd.entries());
 
-  // Campos vazios não são enviados para manter o valor original
   for (const k of Object.keys(data)) {
     if (data[k] === '') delete data[k];
   }
@@ -525,6 +762,7 @@ async function salvarRegistro() {
     }
     fecharModal();
     carregarPagina(entity);
+    atualizarContagem(entity);
   } catch (err) {
     mostrarToast('Erro ao salvar: ' + err.message, 'error');
   }
@@ -536,6 +774,7 @@ async function excluirRegistro(entity, id) {
     await API.delete(entity, id);
     mostrarToast('Registro excluído com sucesso!', 'success');
     carregarPagina(entity);
+    atualizarContagem(entity);
   } catch (err) {
     mostrarToast('Erro ao excluir: ' + err.message, 'error');
   }
@@ -550,14 +789,37 @@ function mostrarToast(msg, type = '') {
   t._timer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.querySelector('.sidebar-backdrop').classList.toggle('open');
+// ---------------------------------------------------------------
+// Inicialização
+// ---------------------------------------------------------------
+function initNav() {
+  document.querySelectorAll('.api-pill').forEach(pill => {
+    pill.addEventListener('click', () => { if (!apiOnline) checarStatusApi(true); });
+  });
+  document.addEventListener('click', e => {
+    const drop = document.getElementById('navMoreDrop');
+    if (drop && !drop.classList.contains('hidden') && !e.target.closest('.nav-more')) {
+      fecharMore();
+    }
+    if (window.innerWidth < 768) {
+      const drawer = document.getElementById('drawer');
+      if (drawer.classList.contains('open') && !e.target.closest('#drawer') && !e.target.closest('.hamburger')) {
+        fecharDrawer();
+      }
+    }
+  });
+  window.addEventListener('resize', () => {
+    clearTimeout(window._resizeNavT);
+    window._resizeNavT = setTimeout(ajustarOverflowNav, 150);
+  });
 }
 
-function fecharSidebarMobile() {
-  if (window.innerWidth < 768) {
-    document.getElementById('sidebar').classList.remove('open');
-    document.querySelector('.sidebar-backdrop').classList.remove('open');
-  }
-}
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  initNav();
+  montarNavMeta([]);
+  renderNav();
+  checarStatusApi(true);
+  navegar('dashboard');
+  setInterval(() => checarStatusApi(false), 15000);
+});
