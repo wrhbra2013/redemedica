@@ -1,21 +1,25 @@
-const pages = ['dashboard', 'agendamentos', 'medicos', 'pacientes', 'servicos'];
+const pages = ['dashboard', 'agendamentos', 'medicos', 'pacientes', 'servicos', 'categorias'];
 let currentPage = 'dashboard';
 let editId = null;
 let currentEntity = '';
+let categoriasCache = [];
+let pendingCategoria = null;
 
 const ENTITIES = {
   agendamentos: { label: 'Agendamento', labelPlural: 'Agendamentos' },
   medicos: { label: 'Médico', labelPlural: 'Médicos' },
   pacientes: { label: 'Paciente', labelPlural: 'Pacientes' },
   servicos: { label: 'Serviço', labelPlural: 'Serviços' },
+  categorias: { label: 'Categoria', labelPlural: 'Categorias' },
 };
 
 const SUBTITLES = {
-  dashboard: 'Visão geral dos agendamentos',
+  dashboard: 'Visão geral dos agendamentos e categorias',
   agendamentos: 'Gerencie os agendamentos',
-  medicos: 'Cadastro de médicos',
-  pacientes: 'Cadastro de pacientes',
+  medicos: 'Profissionais da medicina classificados por categorias',
+  pacientes: 'Cadastro gratuito de pacientes',
   servicos: 'Serviços oferecidos',
+  categorias: 'Registre e gerencie as categorias dos profissionais',
 };
 
 const ICONS = {
@@ -30,6 +34,9 @@ const ICONS = {
   stethoscope: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6M10 6h4M12 2v4"/><circle cx="12" cy="13" r="4"/><path d="M6 21c0-3 2.7-5 6-5s6 2 6 5"/></svg>',
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 21c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15.6c2.9-.3 5.5 1.6 5.5 4.4"/></svg>',
   activity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>',
+  category: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24H5a2 2 0 0 0-2 2v4.59A2 2 0 0 0 3.59 11l9.58 9.59a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  whatsapp: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>',
 };
 
 const STATS = [
@@ -39,6 +46,7 @@ const STATS = [
   { label: 'Médicos', icon: 'stethoscope', tone: 't-sky' },
   { label: 'Pacientes', icon: 'users', tone: 't-violet' },
   { label: 'Serviços', icon: 'activity', tone: 't-emerald' },
+  { label: 'Categorias', icon: 'category', tone: 't-rose' },
 ];
 
 function setTheme(theme) {
@@ -113,19 +121,21 @@ async function carregarPagina(page) {
 
 async function carregarDashboard(container) {
   try {
-    const [agendamentos, medicos, pacientes, servicos] = await Promise.all([
+    const [agendamentos, medicos, pacientes, servicos, categorias] = await Promise.all([
       API.get('agendamentos'),
       API.get('medicos'),
       API.get('pacientes'),
       API.get('servicos'),
+      API.get('categorias'),
     ]);
+    categoriasCache = categorias || [];
 
     const data = agendamentos || [];
     const pendentes = data.filter(a => a.status === 'PENDENTE' || !a.status).length;
     const hoje = new Date().toISOString().split('T')[0];
     const hojeCount = data.filter(a => a.data && a.data.startsWith(hoje)).length;
 
-    const values = [data.length, pendentes, hojeCount, (medicos || []).length, (pacientes || []).length, (servicos || []).length];
+    const values = [data.length, pendentes, hojeCount, (medicos || []).length, (pacientes || []).length, (servicos || []).length, categoriasCache.length];
 
     const cards = STATS.map((s, i) => `
       <div class="stat-card">
@@ -137,6 +147,7 @@ async function carregarDashboard(container) {
 
     container.innerHTML = `
       <div class="stats-grid">${cards}</div>
+      ${gerarPainelCategorias(categoriasCache, medicos)}
       ${gerarTabelaAgendamentos(data.slice(0, 10))}
     `;
   } catch (err) {
@@ -144,20 +155,71 @@ async function carregarDashboard(container) {
   }
 }
 
+function gerarPainelCategorias(categorias, medicos) {
+  const lista = categorias || [];
+  if (lista.length === 0) {
+    return `<div class="card">
+      <div class="card-header">Categorias de Profissionais</div>
+      <div class="card-body"><p style="text-align:center;color:var(--text-tertiary)">Nenhuma categoria cadastrada. <a href="#" onclick="navegar('categorias');return false;" style="color:var(--primary)">Cadastre categorias</a> para classificar os profissionais.</p></div>
+    </div>`;
+  }
+  const cards = lista.map(c => {
+    const count = (medicos || []).filter(m => m.categoria === c.id).length;
+    return `<button type="button" class="category-card" onclick="abrirCategoria('${c.id}')" title="Ver profissionais desta categoria">
+      <div class="category-icon">${ICONS.category}</div>
+      <div class="category-info">
+        <div class="category-name">${c.nome}</div>
+        <div class="category-desc">${c.descricao || 'Profissionais desta categoria'}</div>
+      </div>
+      <div class="category-count"><strong>${count}</strong><span>profissional(is)</span></div>
+    </button>`;
+  }).join('');
+  return `<div class="card">
+    <div class="card-header">Categorias de Profissionais</div>
+    <div class="card-body"><div class="category-grid">${cards}</div></div>
+  </div>`;
+}
+
+function abrirCategoria(categoriaId) {
+  pendingCategoria = categoriaId;
+  navegar('medicos');
+}
+
 async function carregarTabela(entity, container) {
   currentEntity = entity;
   try {
     const data = await API.get(entity) || [];
+    let catFilter = '';
+    if (entity === 'medicos') {
+      try {
+        categoriasCache = await API.get('categorias') || [];
+      } catch {}
+      catFilter = `<div class="filter-categoria">
+        <select id="filterCategoria" onchange="filtrarTabela()">
+          <option value="">Todas as categorias</option>
+          ${categoriasCache.map(c => `<option value="${c.id}">${c.nome}</option>`).join('')}
+        </select>
+      </div>`;
+    }
     const body = data.length === 0
       ? gerarEmptyState('Nenhum registro encontrado', 'Clique em "Novo" para adicionar o primeiro.')
       : `<div class="card"><div class="card-body" id="tableContainer">${gerarTabela(entity, data)}</div></div>`;
     container.innerHTML = `
-      <div class="search-bar">
-        <span class="search-icon">${ICONS.search}</span>
-        <input type="text" placeholder="Buscar..." id="searchInput" oninput="filtrarTabela()">
+      <div class="toolbar-row">
+        <div class="search-bar">
+          <span class="search-icon">${ICONS.search}</span>
+          <input type="text" placeholder="Buscar..." id="searchInput" oninput="filtrarTabela()">
+        </div>
+        ${catFilter}
       </div>
       ${body}
     `;
+    if (entity === 'medicos' && pendingCategoria) {
+      const sel = document.getElementById('filterCategoria');
+      if (sel) sel.value = pendingCategoria;
+      pendingCategoria = null;
+      filtrarTabela();
+    }
   } catch (err) {
     container.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--danger)">Erro ao carregar: ${err.message}</p></div></div>`;
   }
@@ -168,15 +230,29 @@ function gerarTabela(entity, data) {
     return gerarEmptyState('Nenhum registro encontrado', 'Clique em "Novo" para adicionar o primeiro.');
   }
   const cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'created_at' && k !== 'updated_at');
+  const isMedicos = entity === 'medicos';
   const headers = cols.map(c => `<th>${rotuloColuna(c)}</th>`).join('');
+  const extraHeader = isMedicos ? '<th>Contato</th>' : '';
   const rows = data.map(row => {
     const cells = cols.map(c => `<td>${formatarCelula(c, row[c], row)}</td>`).join('');
-    return `<tr><td class="actions-cell">
+    const contato = isMedicos ? `<td>${gerarContato(row)}</td>` : '';
+    const catAttr = isMedicos ? ` data-categoria="${row.categoria || ''}"` : '';
+    return `<tr${catAttr}><td class="actions-cell">
       <button class="btn-icon" onclick="editarRegistro('${entity}','${row.id}')" title="Editar">${ICONS.edit}</button>
       <button class="btn-icon danger" onclick="excluirRegistro('${entity}','${row.id}')" title="Excluir">${ICONS.trash}</button>
-    </td>${cells}</tr>`;
+    </td>${cells}${contato}</tr>`;
   }).join('');
-  return `<div class="table-wrapper"><table><thead><tr><th style="width:80px">Ações</th>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="table-wrapper"><table><thead><tr><th style="width:80px">Ações</th>${headers}${extraHeader}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function gerarContato(row) {
+  const tel = String(row.telefone || '').replace(/\D/g, '');
+  const zap = String(row.whatsapp || '').replace(/\D/g, '');
+  const parts = [];
+  if (tel) parts.push(`<a class="contact-chip" href="tel:+${tel}" title="Ligar ${row.telefone}">${ICONS.phone}</a>`);
+  if (zap) parts.push(`<a class="contact-chip wa" href="https://wa.me/${zap}?text=${encodeURIComponent('Olá, gostaria de agendar uma consulta.')}" target="_blank" rel="noopener" title="WhatsApp ${row.whatsapp}">${ICONS.whatsapp}</a>`);
+  if (!parts.length) return '<span style="color:var(--text-tertiary)">—</span>';
+  return `<div class="contact-group">${parts.join('')}</div>`;
 }
 
 function gerarEmptyState(title, hint) {
@@ -212,7 +288,7 @@ function gerarTabelaAgendamentos(data) {
 
 function rotuloColuna(key) {
   const map = {
-    cliente: 'Paciente', telefone: 'Telefone', data: 'Data', hora: 'Hora',
+    cliente: 'Paciente', telefone: 'Telefone', whatsapp: 'WhatsApp', data: 'Data', hora: 'Hora',
     status: 'Status', observacoes: 'Observações', servico_nome: 'Serviço',
     servico: 'Serviço', valor: 'Valor', pago: 'Pago', nome: 'Nome',
     email: 'Email', especialidade: 'Especialidade', medico_id: 'Médico',
@@ -226,6 +302,15 @@ function rotuloColuna(key) {
 function formatarCelula(col, val, row) {
   if (val === null || val === undefined) return '-';
   if (col === 'data' || col === 'data_nascimento') return formatarData(val);
+  if (col === 'whatsapp') {
+    const digits = String(val).replace(/\D/g, '');
+    if (!digits) return '-';
+    return `<a class="contact-chip wa" href="https://wa.me/${digits}?text=${encodeURIComponent('Olá, gostaria de agendar uma consulta.')}" target="_blank" rel="noopener" title="WhatsApp: ${val}">${ICONS.whatsapp}</a>`;
+  }
+  if (col === 'categoria') {
+    const cat = categoriasCache.find(c => c.id === val);
+    return cat ? cat.nome : (val || '-');
+  }
   if (col === 'pago' || col === 'ativo') {
     return val
       ? '<span style="color:var(--success);display:inline-flex"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span> Sim'
@@ -253,8 +338,11 @@ function formatarData(str) {
 
 function filtrarTabela() {
   const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const cat = document.getElementById('filterCategoria')?.value || '';
   document.querySelectorAll('#tableContainer tbody tr').forEach(tr => {
-    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    const matchQ = tr.textContent.toLowerCase().includes(q);
+    const matchCat = !cat || tr.dataset.categoria === cat;
+    tr.style.display = (matchQ && matchCat) ? '' : 'none';
   });
 }
 
@@ -328,7 +416,8 @@ function getFormFields(entity) {
   const fields = {
     agendamentos: [
       { key: 'cliente', label: 'Nome do Paciente', type: 'text', required: true },
-      { key: 'telefone', label: 'Telefone', type: 'text', required: true },
+      { key: 'telefone', label: 'Telefone', type: 'tel', required: true },
+      { key: 'whatsapp', label: 'WhatsApp', type: 'tel' },
       { key: 'data', label: 'Data', type: 'date', required: true },
       { key: 'hora', label: 'Hora', type: 'time', required: true },
       { key: 'servico', label: 'Serviço', type: 'select', selectKey: 'servicos', required: false },
@@ -340,12 +429,15 @@ function getFormFields(entity) {
     medicos: [
       { key: 'nome', label: 'Nome', type: 'text', required: true },
       { key: 'especialidade', label: 'Especialidade', type: 'text', required: true },
-      { key: 'telefone', label: 'Telefone', type: 'text' },
+      { key: 'categoria', label: 'Categoria', type: 'select', selectKey: 'categorias', required: true },
+      { key: 'telefone', label: 'Telefone', type: 'tel' },
+      { key: 'whatsapp', label: 'WhatsApp', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
     ],
     pacientes: [
       { key: 'nome', label: 'Nome', type: 'text', required: true },
-      { key: 'telefone', label: 'Telefone', type: 'text' },
+      { key: 'telefone', label: 'Telefone', type: 'tel' },
+      { key: 'whatsapp', label: 'WhatsApp', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'data_nascimento', label: 'Data de Nascimento', type: 'date' },
     ],
@@ -355,6 +447,12 @@ function getFormFields(entity) {
       { key: 'preco', label: 'Preço', type: 'number', step: '0.01' },
       { key: 'duracao_minutos', label: 'Duração (min)', type: 'number' },
       { key: 'categoria', label: 'Categoria', type: 'text' },
+      { key: 'ativo', label: 'Ativo', type: 'select', selectKey: 'ativo', required: false },
+    ],
+    categorias: [
+      { key: 'nome', label: 'Nome', type: 'text', required: true },
+      { key: 'descricao', label: 'Descrição', type: 'textarea' },
+      { key: 'ativo', label: 'Ativo', type: 'select', selectKey: 'ativo', required: false },
     ],
   };
   return fields[entity] || base;
@@ -372,6 +470,18 @@ async function getSelectData(entity) {
       { id: 'CONFIRMADO', nome: 'Confirmado' },
       { id: 'REALIZADO', nome: 'Realizado' },
       { id: 'CANCELADO', nome: 'Cancelado' },
+    ];
+  }
+  if (entity === 'medicos') {
+    try {
+      categoriasCache = await API.get('categorias') || [];
+    } catch {}
+    map.categorias = categoriasCache.map(c => ({ id: c.id, nome: c.nome }));
+  }
+  if (entity === 'servicos' || entity === 'categorias') {
+    map.ativo = [
+      { id: '1', nome: 'Sim' },
+      { id: '0', nome: 'Não' },
     ];
   }
   return map;

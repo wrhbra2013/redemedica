@@ -353,6 +353,27 @@ info "servicos.json criado"
 
 
 # --------------------------------------------------------------
+# categorias.json (dados iniciais — copiado para o container)
+# --------------------------------------------------------------
+info "Criando categorias.json"
+cat > "$INSTALL_DIR/categorias.json" <<'CATEOF'
+{
+  "categorias": [
+    { "id": "clinica_geral", "nome": "Clínica Geral", "descricao": "Consultas de clínica geral e medicina de família", "ativo": 1 },
+    { "id": "pediatria", "nome": "Pediatria", "descricao": "Saúde da criança e do adolescente", "ativo": 1 },
+    { "id": "cardiologia", "nome": "Cardiologia", "descricao": "Saúde do coração e do sistema circulatório", "ativo": 1 },
+    { "id": "dermatologia", "nome": "Dermatologia", "descricao": "Saúde da pele, cabelos e unhas", "ativo": 1 },
+    { "id": "ginecologia", "nome": "Ginecologia e Obstetrícia", "descricao": "Saúde da mulher", "ativo": 1 },
+    { "id": "ortopedia", "nome": "Ortopedia", "descricao": "Saúde do sistema musculoesquelético", "ativo": 1 },
+    { "id": "psicologia", "nome": "Psicologia", "descricao": "Saúde mental e bem-estar emocional", "ativo": 1 },
+    { "id": "nutricao", "nome": "Nutrição", "descricao": "Alimentação saudável e reeducação nutricional", "ativo": 1 }
+  ]
+}
+CATEOF
+info "categorias.json criado"
+
+
+# --------------------------------------------------------------
 # src/server.js
 # --------------------------------------------------------------
 info "Criando src/server.js"
@@ -379,23 +400,28 @@ const DB_DIR = path.dirname(DB_PATH);
 const TABLE_DEFS = {
   agendamentos: {
     builtin: true,
-    sql: 'id TEXT PRIMARY KEY, cliente TEXT, telefone TEXT, data TEXT, hora TEXT, servico TEXT, servico_nome TEXT, valor REAL, status TEXT DEFAULT \'PENDENTE\', observacoes TEXT, created_at TEXT',
-    columns: ['id', 'cliente', 'telefone', 'data', 'hora', 'servico', 'servico_nome', 'valor', 'status', 'observacoes', 'created_at'],
+    sql: 'id TEXT PRIMARY KEY, cliente TEXT, telefone TEXT, whatsapp TEXT, data TEXT, hora TEXT, servico TEXT, servico_nome TEXT, valor REAL, status TEXT DEFAULT \'PENDENTE\', observacoes TEXT, created_at TEXT',
+    columns: ['id', 'cliente', 'telefone', 'whatsapp', 'data', 'hora', 'servico', 'servico_nome', 'valor', 'status', 'observacoes', 'created_at'],
   },
   medicos: {
     builtin: true,
-    sql: 'id TEXT PRIMARY KEY, nome TEXT, especialidade TEXT, telefone TEXT, email TEXT, created_at TEXT',
-    columns: ['id', 'nome', 'especialidade', 'telefone', 'email', 'created_at'],
+    sql: 'id TEXT PRIMARY KEY, nome TEXT, especialidade TEXT, categoria TEXT, telefone TEXT, whatsapp TEXT, email TEXT, created_at TEXT',
+    columns: ['id', 'nome', 'especialidade', 'categoria', 'telefone', 'whatsapp', 'email', 'created_at'],
   },
   pacientes: {
     builtin: true,
-    sql: 'id TEXT PRIMARY KEY, nome TEXT, telefone TEXT, email TEXT, data_nascimento TEXT, created_at TEXT',
-    columns: ['id', 'nome', 'telefone', 'email', 'data_nascimento', 'created_at'],
+    sql: 'id TEXT PRIMARY KEY, nome TEXT, telefone TEXT, whatsapp TEXT, email TEXT, data_nascimento TEXT, created_at TEXT',
+    columns: ['id', 'nome', 'telefone', 'whatsapp', 'email', 'data_nascimento', 'created_at'],
   },
   servicos: {
     builtin: true,
     sql: 'id TEXT PRIMARY KEY, nome TEXT, descricao TEXT, categoria TEXT, preco REAL, duracao_minutos INTEGER, ativo INTEGER DEFAULT 1, created_at TEXT',
     columns: ['id', 'nome', 'descricao', 'categoria', 'preco', 'duracao_minutos', 'ativo', 'created_at'],
+  },
+  categorias: {
+    builtin: true,
+    sql: 'id TEXT PRIMARY KEY, nome TEXT UNIQUE, descricao TEXT, ativo INTEGER DEFAULT 1, created_at TEXT',
+    columns: ['id', 'nome', 'descricao', 'ativo', 'created_at'],
   },
   configuracoes: {
     builtin: true,
@@ -436,6 +462,28 @@ function loadDynamicTables(database) {
       database.exec('CREATE TABLE IF NOT EXISTS "' + r.table_name + '" (' + def.sql + ')');
     } catch (e) {
       console.error('Erro ao recriar tabela dinamica ' + r.table_name + ':', e.message);
+    }
+  }
+}
+
+const COLUMN_MIGRATIONS = {
+  medicos: [['categoria', 'TEXT'], ['whatsapp', 'TEXT']],
+  pacientes: [['whatsapp', 'TEXT']],
+  agendamentos: [['whatsapp', 'TEXT']],
+};
+
+function ensureColumns(database) {
+  for (const [table, cols] of Object.entries(COLUMN_MIGRATIONS)) {
+    try {
+      const existing = database.prepare('PRAGMA table_info("' + table + '")').all().map(r => r.name);
+      for (const [name, type] of cols) {
+        if (!existing.includes(name)) {
+          database.exec('ALTER TABLE "' + table + '" ADD COLUMN "' + name + '" ' + type);
+          console.log('Migracao: coluna "' + name + '" adicionada em "' + table + '"');
+        }
+      }
+    } catch (e) {
+      console.error('Erro na migracao de ' + table + ':', e.message);
     }
   }
 }
@@ -624,6 +672,7 @@ const start = async () => {
     db.exec('CREATE TABLE IF NOT EXISTS "' + name + '" (' + def.sql + ')');
   }
   loadDynamicTables(db);
+  ensureColumns(db);
 
   const servicosCount = db.prepare('SELECT COUNT(*) AS cnt FROM servicos').get();
   if (servicosCount.cnt === 0) {
@@ -642,6 +691,26 @@ const start = async () => {
       }
     } else {
       console.log('servicos.json nao encontrado em ' + PROJECT_ROOT + ' — seed ignorado');
+    }
+  }
+
+  const categoriasCount = db.prepare('SELECT COUNT(*) AS cnt FROM categorias').get();
+  if (categoriasCount.cnt === 0) {
+    const categoriasPath = path.join(PROJECT_ROOT, 'categorias.json');
+    if (fs.existsSync(categoriasPath)) {
+      try {
+        const items = JSON.parse(fs.readFileSync(categoriasPath, 'utf-8')).categorias || [];
+        const stmt = db.prepare('INSERT OR IGNORE INTO categorias (id, nome, descricao, ativo, created_at) VALUES (?, ?, ?, ?, ?)');
+        const now = new Date().toISOString();
+        for (const c of items) {
+          stmt.run(c.id || crypto.randomUUID(), c.nome || '', c.descricao || '', c.ativo ?? 1, now);
+        }
+        console.log('Seed: ' + items.length + ' categorias inseridas de categorias.json');
+      } catch (e) {
+        console.error('Erro ao fazer seed de categorias.json:', e.message);
+      }
+    } else {
+      console.log('categorias.json nao encontrado em ' + PROJECT_ROOT + ' — seed ignorado');
     }
   }
 
@@ -677,6 +746,7 @@ COPY js ./js
 
 # Dados iniciais de serviços (seed SQLite)
 COPY servicos.json ./servicos.json
+COPY categorias.json ./categorias.json
 
 EXPOSE 3001
 
@@ -703,6 +773,7 @@ services:
     volumes:
       - ./data:/data
       - ./servicos.json:/app/servicos.json:ro
+      - ./categorias.json:/app/categorias.json:ro
     restart: unless-stopped
 COMPOSEEOF
 
