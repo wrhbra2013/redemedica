@@ -7,7 +7,10 @@ set -eu
 #       sudo bash install_redemedica.sh uninstall (desinstalar)
 #
 # API REST com Fastify + SQLite (node:sqlite built-in) em container
-# Docker. O container também serve o site estático (index.html/css/js).
+# Docker. O site estático é servido pelo GitHub Pages; este script
+# sobe apenas a API/SQLite, exposta em
+# https://api.projetosdinamicos.com.br/redemedica/ via location no Nginx
+# (mesmo padrão do install_crebortoli.sh).
 # Requer: Debian 11+ (sudo apt para dependências)
 # ==============================================================
 
@@ -268,24 +271,14 @@ info "Porta definida: $APP_PORT"
 
 printf "Nome do projeto Docker/compose [redemedica]: "; read -r COMPOSE_PROJECT_NAME
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-redemedica}; info "COMPOSE_PROJECT_NAME: $COMPOSE_PROJECT_NAME"
-APP_DOMAIN=rede.medica
+APP_DOMAIN=api.projetosdinamicos.com.br
 
 
 # --------------------------------------------------------------
-# Criar diretórios e copiar site estático (build context)
+# Criar diretórios
 # --------------------------------------------------------------
 info "Criando diretórios..."
 mkdir -p "$SRC_DIR" && info "Diretórios criados: $SRC_DIR" || warn "Erro ao criar diretórios"
-
-info "Copiando site estático para $INSTALL_DIR..."
-for f in index.html css js; do
-  if [ -e "$SCRIPT_DIR/$f" ]; then
-    cp -r "$SCRIPT_DIR/$f" "$INSTALL_DIR/"
-  else
-    error "Arquivo/pasta obrigatória não encontrada: $SCRIPT_DIR/$f"
-  fi
-done
-info "Site estático copiado: index.html, css/, js/"
 
 
 # --------------------------------------------------------------
@@ -739,11 +732,6 @@ RUN npm install --production
 # Código-fonte da API
 COPY api/src/ ./src/
 
-# Site estático (servido pela própria API)
-COPY index.html ./index.html
-COPY css ./css
-COPY js ./js
-
 # Dados iniciais de serviços (seed SQLite)
 COPY servicos.json ./servicos.json
 COPY categorias.json ./categorias.json
@@ -779,47 +767,37 @@ COMPOSEEOF
 
 
 # --------------------------------------------------------------
-# Nginx — gera virtual host (proxy para a API)
+# Nginx — location /${COMPOSE_PROJECT_NAME}/ no host api.projetosdinamicos.com.br
 # --------------------------------------------------------------
-info "Configurando Nginx"
+info "Configurando Nginx (location /${COMPOSE_PROJECT_NAME}/)"
 
-if [ ! -f "$NGINX_CONF" ]; then
-  warn "Criando arquivo base $NGINX_CONF..."
-  mkdir -p "$(dirname "$NGINX_CONF")"
-  cat > "$NGINX_CONF" <<BASEEOF
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name _;
-    return 404;
-}
-BASEEOF
+NGINX_LOCATIONS="/etc/nginx/${COMPOSE_PROJECT_NAME}-locations.conf"
+
+if ! grep -q "server_name api\.projetosdinamicos\.com\.br" "$NGINX_CONF" 2>/dev/null; then
+  error "Server block de ${APP_DOMAIN} não encontrado em ${NGINX_CONF} — configure o domínio principal antes de instalar o projeto."
 fi
 
-if ! grep -q "# BEGIN ${COMPOSE_PROJECT_NAME}_site" "$NGINX_CONF"; then
-  info "Adicionando server block para $APP_DOMAIN..."
-  cat >> "$NGINX_CONF" <<SERVEOF
+# Gera arquivo com a location do projeto (proxy_pass com barra remove o prefixo)
+cat > "$NGINX_LOCATIONS" <<LOCEOF
+# Location para ${COMPOSE_PROJECT_NAME} — adicionado pelo install_redemedica.sh
+location = /${COMPOSE_PROJECT_NAME} { return 301 /${COMPOSE_PROJECT_NAME}/; }
 
-# BEGIN ${COMPOSE_PROJECT_NAME}_site
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${APP_DOMAIN};
-
-    location / {
-        proxy_pass http://127.0.0.1:${APP_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
+location /${COMPOSE_PROJECT_NAME}/ {
+    proxy_pass http://127.0.0.1:${APP_PORT}/;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
 }
-# END ${COMPOSE_PROJECT_NAME}_site
-SERVEOF
-  info "Server block adicionado"
+LOCEOF
+info "Locations gerado: ${NGINX_LOCATIONS}"
+
+if ! grep -q "${COMPOSE_PROJECT_NAME}-locations.conf" "$NGINX_CONF"; then
+  info "Adicionando include ao server block de ${APP_DOMAIN}..."
+  sed -i "/^\s*server_name api\.projetosdinamicos\.com\.br;$/a\    include /etc/nginx/${COMPOSE_PROJECT_NAME}-locations.conf;" "$NGINX_CONF"
 else
-  info "Server block já existe no nginx"
+  info "Include já existe no nginx"
 fi
 
 
@@ -875,9 +853,9 @@ fi
 echo ""
 info "===== Instalação concluída! ====="
 echo ""
-echo "  Domínio: $APP_DOMAIN  |  Porta: $APP_PORT"
-echo "  Docker:  $COMPOSE_PROJECT_NAME"
-echo "  .env:    $INSTALL_DIR/.env"
+echo "  API URL:  https://${APP_DOMAIN}/${COMPOSE_PROJECT_NAME}/  (site: GitHub Pages)"
+echo "  Porta:    ${APP_PORT}  |  Docker: ${COMPOSE_PROJECT_NAME}"
+echo "  .env:     ${INSTALL_DIR}/.env"
 echo ""
 echo "  Comandos úteis:"
 echo "    Logs:     $DOCKER_COMPOSE_CMD -f $INSTALL_DIR/docker-compose.yml logs -f"
@@ -892,11 +870,13 @@ echo "$resp" | grep -q '"status":"ok"\|"ok"' && info "Local:      ✓ http://127
 resp2=$(curl -s "http://127.0.0.1:$APP_PORT/ping" 2>/dev/null) || resp2=""
 echo "$resp2" | grep -q '"pong":true' && info "Ping:       ✓ http://127.0.0.1:$APP_PORT/ping" || warn "Ping:       ✗ $resp2"
 
-info "Testando site via nginx..."
-resp3=$(curl -s --max-time 10 "http://127.0.0.1/" -H "Host: $APP_DOMAIN" 2>/dev/null) || resp3=""
-echo "$resp3" | grep -q "Agendamentos" && info "Site:       ✓ http://$APP_DOMAIN/" || warn "Site:       ✗ — verifique nginx -t e se o DNS aponta para este servidor"
+info "Testando API via nginx (location /${COMPOSE_PROJECT_NAME}/)..."
+resp3=$(curl -s --max-time 10 "http://127.0.0.1/${COMPOSE_PROJECT_NAME}/health" -H "Host: $APP_DOMAIN" 2>/dev/null) || resp3=""
+echo "$resp3" | grep -q '"status":"ok"\|"ok"' && info "Nginx:      ✓ http://127.0.0.1/${COMPOSE_PROJECT_NAME}/health (Host: $APP_DOMAIN)" || warn "Nginx:      ✗ — verifique nginx -t"
+
+info "Testando acesso externo..."
+resp4=$(curl -s --max-time 10 "https://${APP_DOMAIN}/${COMPOSE_PROJECT_NAME}/health" 2>/dev/null) || resp4=""
+echo "$resp4" | grep -q '"status":"ok"\|"ok"' && info "Externo:    ✓ https://${APP_DOMAIN}/${COMPOSE_PROJECT_NAME}/health" || warn "Externo:    ✗ — verifique DNS/firewall/TLS"
 
 echo "" && info "Testes concluídos!"
-echo ""
-echo "  .env:    $INSTALL_DIR/.env"
 echo ""
