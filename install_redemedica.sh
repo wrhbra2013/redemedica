@@ -398,13 +398,13 @@ const TABLE_DEFS = {
   },
   medicos: {
     builtin: true,
-    sql: 'id TEXT PRIMARY KEY, nome TEXT, especialidade TEXT, categoria TEXT, telefone TEXT, whatsapp TEXT, email TEXT, created_at TEXT',
-    columns: ['id', 'nome', 'especialidade', 'categoria', 'telefone', 'whatsapp', 'email', 'created_at'],
+    sql: 'id TEXT PRIMARY KEY, nome TEXT, especialidade TEXT, categoria TEXT, telefone TEXT, whatsapp TEXT, email TEXT, cep TEXT, logradouro TEXT, bairro TEXT, cidade TEXT, uf TEXT, regiao TEXT, created_at TEXT',
+    columns: ['id', 'nome', 'especialidade', 'categoria', 'telefone', 'whatsapp', 'email', 'cep', 'logradouro', 'bairro', 'cidade', 'uf', 'regiao', 'created_at'],
   },
   pacientes: {
     builtin: true,
-    sql: 'id TEXT PRIMARY KEY, nome TEXT, telefone TEXT, whatsapp TEXT, email TEXT, data_nascimento TEXT, created_at TEXT',
-    columns: ['id', 'nome', 'telefone', 'whatsapp', 'email', 'data_nascimento', 'created_at'],
+    sql: 'id TEXT PRIMARY KEY, nome TEXT, telefone TEXT, whatsapp TEXT, email TEXT, data_nascimento TEXT, cep TEXT, logradouro TEXT, bairro TEXT, cidade TEXT, uf TEXT, regiao TEXT, created_at TEXT',
+    columns: ['id', 'nome', 'telefone', 'whatsapp', 'email', 'data_nascimento', 'cep', 'logradouro', 'bairro', 'cidade', 'uf', 'regiao', 'created_at'],
   },
   servicos: {
     builtin: true,
@@ -456,6 +456,33 @@ function isAdminRequest(req) {
   return !!(m && m[1] === ADMIN_TOKEN);
 }
 
+// --------------------------------------------------------------
+// Consulta de CEP — viaCEP com fallback BrasilAPI + cache
+// --------------------------------------------------------------
+const REGIOES_BY_UF = {
+  AC: 'Norte', AL: 'Nordeste', AM: 'Norte', AP: 'Norte', BA: 'Nordeste',
+  CE: 'Nordeste', DF: 'Centro-Oeste', ES: 'Sudeste', GO: 'Centro-Oeste',
+  MA: 'Nordeste', MG: 'Sudeste', MS: 'Centro-Oeste', MT: 'Centro-Oeste',
+  PA: 'Norte', PB: 'Nordeste', PE: 'Nordeste', PI: 'Nordeste', PR: 'Sul',
+  RJ: 'Sudeste', RN: 'Nordeste', RO: 'Norte', RR: 'Norte', RS: 'Sul',
+  SC: 'Sul', SE: 'Nordeste', SP: 'Sudeste', TO: 'Norte',
+};
+
+const cepCache = new Map();
+const CEP_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+
+function normalizarCepData(raw) {
+  const uf = String(raw.uf || raw.state || '').toUpperCase();
+  return {
+    cep: String(raw.cep || '').replace(/\D/g, ''),
+    logradouro: raw.logradouro || raw.street || '',
+    bairro: raw.bairro || raw.neighborhood || '',
+    cidade: raw.localidade || raw.city || '',
+    uf,
+    regiao: raw.regiao || REGIOES_BY_UF[uf] || '',
+  };
+}
+
 function ensureBaseTables(database) {
   database.exec('CREATE TABLE IF NOT EXISTS "_schema" (id TEXT PRIMARY KEY, table_name TEXT UNIQUE, def TEXT, created_at TEXT)');
 }
@@ -475,8 +502,8 @@ function loadDynamicTables(database) {
 }
 
 const COLUMN_MIGRATIONS = {
-  medicos: [['categoria', 'TEXT'], ['whatsapp', 'TEXT']],
-  pacientes: [['whatsapp', 'TEXT']],
+  medicos: [['categoria', 'TEXT'], ['whatsapp', 'TEXT'], ['cep', 'TEXT'], ['logradouro', 'TEXT'], ['bairro', 'TEXT'], ['cidade', 'TEXT'], ['uf', 'TEXT'], ['regiao', 'TEXT']],
+  pacientes: [['whatsapp', 'TEXT'], ['cep', 'TEXT'], ['logradouro', 'TEXT'], ['bairro', 'TEXT'], ['cidade', 'TEXT'], ['uf', 'TEXT'], ['regiao', 'TEXT']],
   agendamentos: [['whatsapp', 'TEXT']],
 };
 
@@ -689,6 +716,38 @@ fastify.get('/api/auth/check', async (req, res) => {
     return res.send({ ok: true, role: 'admin' });
   }
   return res.code(401).send({ ok: false, error: 'Não autenticado' });
+});
+
+fastify.get('/api/cep/:cep', async (req, res) => {
+  const cep = String(req.params.cep || '').replace(/\D/g, '');
+  if (!/^\d{8}$/.test(cep)) {
+    return res.code(400).send({ erro: true, message: 'CEP inválido — informe 8 dígitos' });
+  }
+
+  const hit = cepCache.get(cep);
+  if (hit && Date.now() - hit.ts < CEP_CACHE_TTL) {
+    return res.send(hit.data);
+  }
+
+  try {
+    const via = await fetch(`https://viacep.com.br/ws/${cep}/json/`).then(r => r.json()).catch(() => null);
+    if (via && !via.erro) {
+      const data = normalizarCepData(via);
+      cepCache.set(cep, { ts: Date.now(), data });
+      return res.send(data);
+    }
+
+    const brasil = await fetch(`https://brasilapi.com.br/api/cep/v1/${cep}`).then(r => r.json()).catch(() => null);
+    if (brasil && !brasil.erro && !brasil.message) {
+      const data = normalizarCepData(brasil);
+      cepCache.set(cep, { ts: Date.now(), data });
+      return res.send(data);
+    }
+
+    return res.code(404).send({ erro: true, message: 'CEP não encontrado' });
+  } catch (e) {
+    return res.code(502).send({ erro: true, message: 'Falha ao consultar CEP: ' + e.message });
+  }
 });
 
 fastify.setNotFoundHandler(async (req, res) => {

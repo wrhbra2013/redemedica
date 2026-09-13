@@ -52,6 +52,17 @@ const API = {
     }
   },
 
+  async cep(cep) {
+    const res = await fetch(`${this.baseURL}/api/cep/${String(cep).replace(/\D/g, '')}`);
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { data = null; }
+    if (!res.ok || !data || data.erro) {
+      throw new Error((data && data.message) || 'CEP não encontrado');
+    }
+    return data;
+  },
+
   get(table, id = null) { return this.request('GET', table, null, id); },
   create(table, data) { return this.request('POST', table, data); },
   update(table, id, data) { return this.request('PUT', table, data, id); },

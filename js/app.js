@@ -727,6 +727,7 @@ async function carregarTabela(entity, container) {
   try {
     const data = await API.get(entity) || [];
     let catFilter = '';
+    let geoFilter = '';
     if (entity === 'medicos') {
       try { categoriasCache = await API.get('categorias') || []; } catch {}
       catFilter = `<div class="filter-categoria">
@@ -735,6 +736,9 @@ async function carregarTabela(entity, container) {
           ${categoriasCache.map(c => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')}
         </select>
       </div>`;
+    }
+    if (entity === 'medicos' || entity === 'pacientes') {
+      geoFilter = gerarFiltroRegiao(data);
     }
     const body = data.length === 0
       ? gerarEmptyState('Nenhum registro encontrado', 'Clique em "Novo" para adicionar o primeiro.')
@@ -746,6 +750,7 @@ async function carregarTabela(entity, container) {
           <input type="text" placeholder="Buscar..." id="searchInput" oninput="filtrarTabela()">
         </div>
         ${catFilter}
+        ${geoFilter}
       </div>
       ${body}
     `;
@@ -772,7 +777,8 @@ function gerarTabela(entity, data) {
     const cells = cols.map(c => `<td>${formatarCelula(c, row[c], row)}</td>`).join('');
     const contato = isMedicos ? `<td>${gerarContato(row)}</td>` : '';
     const catAttr = isMedicos ? ` data-categoria="${esc(row.categoria || '')}"` : '';
-    return `<tr${catAttr}><td class="actions-cell">
+    const geoAttr = ` data-uf="${esc(row.uf || '')}" data-cidade="${esc(row.cidade || '')}"`;
+    return `<tr${catAttr}${geoAttr}><td class="actions-cell">
       <button class="btn-icon" onclick="editarRegistro('${entity}','${esc(row.id)}')" title="Editar">${ICONS.edit}</button>
       <button class="btn-icon danger" onclick="excluirRegistro('${entity}','${esc(row.id)}')" title="Excluir">${ICONS.trash}</button>
     </td>${cells}${contato}</tr>`;
@@ -830,6 +836,8 @@ function rotuloColuna(key) {
     paciente_id: 'Paciente', data_nascimento: 'Nascimento', preco: 'Preço',
     descricao: 'Descrição', duracao_minutos: 'Duração (min)', ativo: 'Ativo',
     categoria: 'Categoria', servico_id: 'Serviço',
+    cep: 'CEP', logradouro: 'Endereço', bairro: 'Bairro', cidade: 'Cidade',
+    uf: 'UF', regiao: 'Região',
   };
   return map[key] || key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
 }
@@ -837,6 +845,10 @@ function rotuloColuna(key) {
 function formatarCelula(col, val, row) {
   if (val === null || val === undefined) return '-';
   if (col === 'data' || col === 'data_nascimento') return formatarData(val);
+  if (col === 'cep') {
+    const d = String(val).replace(/\D/g, '');
+    return d.length === 8 ? esc(`${d.slice(0, 5)}-${d.slice(5)}`) : esc(val);
+  }
   if (col === 'whatsapp') {
     const digits = String(val).replace(/\D/g, '');
     if (!digits) return '-';
@@ -875,13 +887,51 @@ function formatarData(str) {
   return isNaN(d.getTime()) ? esc(str) : d.toLocaleDateString('pt-BR');
 }
 
+function gerarFiltroRegiao(data) {
+  const ufs = [...new Set((data || []).map(r => String(r.uf || '').trim()).filter(Boolean))].sort();
+  const ufOptions = ufs.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
+  return `
+    <div class="filter-regiao">
+      <select id="filterUf" onchange="onFiltroUf()" aria-label="Filtrar por UF">
+        <option value="">Todas as UF</option>
+        ${ufOptions}
+      </select>
+      <select id="filterCidade" onchange="filtrarTabela()" aria-label="Filtrar por cidade">
+        <option value="">Todas as cidades</option>
+      </select>
+    </div>`;
+}
+
+function onFiltroUf() {
+  const uf = document.getElementById('filterUf')?.value || '';
+  const cidadeSel = document.getElementById('filterCidade');
+  if (!cidadeSel) return;
+  const prev = cidadeSel.value || '';
+  const cidades = [];
+  document.querySelectorAll('#tableContainer tbody tr').forEach(tr => {
+    if (!uf || tr.dataset.uf === uf) {
+      const c = tr.dataset.cidade;
+      if (c && !cidades.includes(c)) cidades.push(c);
+    }
+  });
+  cidades.sort();
+  cidadeSel.innerHTML = `<option value="">Todas as cidades</option>` +
+    cidades.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if (cidades.includes(prev)) cidadeSel.value = prev;
+  filtrarTabela();
+}
+
 function filtrarTabela() {
   const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
   const cat = document.getElementById('filterCategoria')?.value || '';
+  const uf = document.getElementById('filterUf')?.value || '';
+  const cidade = document.getElementById('filterCidade')?.value || '';
   document.querySelectorAll('#tableContainer tbody tr').forEach(tr => {
     const matchQ = tr.textContent.toLowerCase().includes(q);
     const matchCat = !cat || tr.dataset.categoria === cat;
-    tr.style.display = (matchQ && matchCat) ? '' : 'none';
+    const matchUf = !uf || tr.dataset.uf === uf;
+    const matchCidade = !cidade || tr.dataset.cidade === cidade;
+    tr.style.display = (matchQ && matchCat && matchUf && matchCidade) ? '' : 'none';
   });
 }
 
@@ -920,6 +970,41 @@ function fecharModal() {
   configurarSalvarPadrao();
 }
 
+async function buscarCep() {
+  const input = document.querySelector('input[name="cep"]');
+  if (!input) return;
+  const cep = String(input.value || '').replace(/\D/g, '');
+  if (cep.length !== 8) {
+    mostrarToast('CEP inválido — informe 8 dígitos', 'error');
+    return;
+  }
+  const logradouroEl = document.querySelector('input[name="logradouro"]');
+  if (input.dataset.consulta === cep && logradouroEl && String(logradouroEl.value || '').trim()) {
+    return;
+  }
+  input.dataset.consulta = cep;
+  const status = document.getElementById('cepStatus');
+  if (status) { status.textContent = 'Consultando...'; status.className = 'cep-status'; }
+  try {
+    const r = await API.cep(cep);
+    const set = (k, v) => {
+      const el = document.querySelector(`input[name="${k}"]`);
+      if (el) el.value = String(v ?? '').trim();
+    };
+    set('logradouro', r.logradouro);
+    set('bairro', r.bairro);
+    set('cidade', r.cidade);
+    set('uf', r.uf);
+    set('regiao', r.regiao);
+    if (status) { status.textContent = 'Endereço localizado' + (r.regiao ? ' · região ' + r.regiao : ''); status.className = 'cep-status ok'; }
+    mostrarToast('Endereço preenchido automaticamente', 'success');
+  } catch (err) {
+    input.dataset.consulta = '';
+    if (status) { status.textContent = err.message; status.className = 'cep-status err'; }
+    mostrarToast(err.message, 'error');
+  }
+}
+
 async function gerarFormulario(entity, data = {}) {
   let fields = getFormFields(entity);
   if (!fields.length) {
@@ -953,10 +1038,23 @@ async function gerarFormulario(entity, data = {}) {
           <textarea name="${esc(f.key)}" ${f.required ? 'required' : ''}>${esc(val)}</textarea>
         </div>`;
     }
+    if (f.type === 'cep') {
+      const cepRaw = String(val).replace(/\D/g, '');
+      return `
+        <div class="form-group">
+          <label>${esc(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>
+          <div class="cep-row">
+            <input type="text" name="${esc(f.key)}" value="${esc(val)}" maxlength="9" placeholder="00000-000" inputmode="numeric" data-consulta="${cepRaw}" onblur="buscarCep()">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="buscarCep()">Buscar</button>
+          </div>
+          <p class="cep-status" id="cepStatus"></p>
+        </div>`;
+    }
+    const ro = f.readonly ? ' readonly' : '';
     return `
       <div class="form-group">
         <label>${esc(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>
-        <input type="${f.type}" name="${esc(f.key)}" value="${esc(val)}" ${f.required ? 'required' : ''}>
+        <input type="${f.type}" name="${esc(f.key)}" value="${esc(val)}" ${f.required ? 'required' : ''}${ro}>
       </div>`;
   }).join('');
   return `<form id="formRegistro" onsubmit="return false">${html}</form>`;
@@ -999,6 +1097,12 @@ function getFormFields(entity) {
       { key: 'telefone', label: 'Telefone', type: 'tel' },
       { key: 'whatsapp', label: 'WhatsApp', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
+      { key: 'cep', label: 'CEP', type: 'cep' },
+      { key: 'logradouro', label: 'Endereço', type: 'text' },
+      { key: 'bairro', label: 'Bairro', type: 'text' },
+      { key: 'cidade', label: 'Cidade', type: 'text' },
+      { key: 'uf', label: 'UF', type: 'text' },
+      { key: 'regiao', label: 'Região', type: 'text', readonly: true },
     ],
     pacientes: [
       { key: 'nome', label: 'Nome', type: 'text', required: true },
@@ -1006,6 +1110,12 @@ function getFormFields(entity) {
       { key: 'whatsapp', label: 'WhatsApp', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'data_nascimento', label: 'Data de Nascimento', type: 'date' },
+      { key: 'cep', label: 'CEP', type: 'cep' },
+      { key: 'logradouro', label: 'Endereço', type: 'text' },
+      { key: 'bairro', label: 'Bairro', type: 'text' },
+      { key: 'cidade', label: 'Cidade', type: 'text' },
+      { key: 'uf', label: 'UF', type: 'text' },
+      { key: 'regiao', label: 'Região', type: 'text', readonly: true },
     ],
     servicos: [
       { key: 'nome', label: 'Nome', type: 'text', required: true },
