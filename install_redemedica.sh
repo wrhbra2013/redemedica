@@ -828,6 +828,41 @@ fastify.get('/api/auth/check', async (req, res) => {
   return res.code(401).send({ ok: false, error: 'Não autenticado' });
 });
 
+// --------------------------------------------------------------
+// Configurações persistentes (tabela configuracoes) — chave/valor
+// Ex.: personalização do menu (GET/PUT /api/config/menu)
+// --------------------------------------------------------------
+const sanitizeConfigKey = (k) => String(k || '').replace(/[^a-zA-Z0-9_.-]/g, '');
+const getConfigValor = (db, key) => {
+  const row = db.prepare('SELECT valor FROM configuracoes WHERE chave = ?').get(key);
+  return row ? row.valor : null;
+};
+
+fastify.get('/api/config/:key', async (req, res) => {
+  if (!isAdminRequest(req)) {
+    return res.code(401).send({ error: 'Acesso restrito ao administrador' });
+  }
+  const key = sanitizeConfigKey(req.params.key);
+  if (!key) return res.code(400).send({ error: 'Chave inválida' });
+  return res.send({ ok: true, key, valor: getConfigValor(getDb(), key) });
+});
+
+fastify.put('/api/config/:key', async (req, res) => {
+  if (!isAdminRequest(req)) {
+    return res.code(401).send({ error: 'Acesso restrito ao administrador' });
+  }
+  const key = sanitizeConfigKey(req.params.key);
+  if (!key) return res.code(400).send({ error: 'Chave inválida' });
+  const body = (req.body && typeof req.body === 'object') ? req.body : {};
+  const valor = body.valor !== undefined ? String(body.valor) : null;
+  const now = new Date().toISOString();
+  getDb().prepare(
+    'INSERT INTO configuracoes (id, chave, valor, updated_at) VALUES (?, ?, ?, ?) ' +
+    'ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor, updated_at = excluded.updated_at'
+  ).run(crypto.randomUUID(), key, valor, now);
+  return res.send({ ok: true, key, valor, updated_at: now });
+});
+
 fastify.get('/api/cep/:cep', async (req, res) => {
   const cep = String(req.params.cep || '').replace(/\D/g, '');
   if (!/^\d{8}$/.test(cep)) {

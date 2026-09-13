@@ -1680,26 +1680,6 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 /* ============ ACESSO MÓVEL (QR / OTP) ============ */
-.login-switch {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  text-align: center;
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--primary);
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.link-btn:hover { color: var(--primary-hover); }
-
 .qr-panel { text-align: center; }
 
 .qr-loading { padding: 8px 0; }
@@ -1712,32 +1692,17 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 .qr-img {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  margin: 0 auto;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: #fff;
   padding: 8px;
   box-sizing: border-box;
-  max-width: 100%;
 }
-
-.qr-or {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin-top: 14px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-.qr-code {
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: .35em;
-  font-variant-numeric: tabular-nums;
-  color: var(--primary);
-  margin: 6px 0 4px;
-}
-
-.qr-code code { font-family: inherit; }
 
 .qr-timer {
   font-size: 13px;
@@ -1755,3 +1720,34 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 .qr-panel .btn-block { margin-top: 4px; }
+
+/* ---------- melhorias mobile ---------- */
+@media (max-width: 767px) {
+  .modal-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-height: 92vh;
+    max-width: 100%;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .modal-header { padding: 18px 20px 0; }
+  .modal-body { padding: 14px 20px 20px; }
+  .modal-footer { padding: 12px 20px; }
+
+  .modal-footer .btn { flex: 1; justify-content: center; }
+
+  .qr-title { font-size: 15px; }
+  .qr-hint { font-size: 12.5px; max-width: 340px; margin-left: auto; margin-right: auto; }
+  .qr-timer { font-size: 13.5px; }
+}
+
+@media (max-width: 380px) {
+  .modal-header { padding: 16px 16px 0; }
+  .modal-body { padding: 12px 16px 18px; }
+  .qr-img { max-width: 180px; padding: 6px; }
+  .qr-title { font-size: 14px; margin-bottom: 10px; }
+}

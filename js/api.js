@@ -92,6 +92,33 @@ const API = {
     return data;
   },
 
+  async getConfig(key) {
+    const res = await fetch(`${this.baseURL}/api/config/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${this._token || ''}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data && data.error) || 'Falha ao ler configuração');
+    }
+    return data;
+  },
+
+  async saveConfig(key, valor) {
+    const res = await fetch(`${this.baseURL}/api/config/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this._token || ''}`,
+      },
+      body: JSON.stringify({ valor }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data && data.error) || 'Falha ao salvar configuração');
+    }
+    return data;
+  },
+
   get(table, id = null) { return this.request('GET', table, null, id); },
   create(table, data) { return this.request('POST', table, data); },
   update(table, id, data) { return this.request('PUT', table, data, id); },

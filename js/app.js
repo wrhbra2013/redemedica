@@ -5,9 +5,10 @@ const PAGES = {
   pacientes: { label: 'Pacientes', icon: 'users', section: 'Agenda' },
   servicos: { label: 'Serviços', icon: 'activity', section: 'Catálogo' },
   categorias: { label: 'Categorias', icon: 'category', section: 'Catálogo' },
+  menu: { label: 'Menu', icon: 'menu', section: 'Configurações' },
 };
 
-const SECTION_ORDER = ['Visão Geral', 'Agenda', 'Catálogo', 'Outras tabelas'];
+const SECTION_ORDER = ['Visão Geral', 'Agenda', 'Catálogo', 'Configurações', 'Outras tabelas'];
 
 const ENTITIES = {
   agendamentos: { label: 'Agendamento', labelPlural: 'Agendamentos' },
@@ -24,6 +25,7 @@ const SUBTITLES = {
   pacientes: 'Cadastro gratuito de pacientes',
   servicos: 'Serviços oferecidos',
   categorias: 'Registre e gerencie as categorias dos profissionais',
+  menu: 'Personalize a ordem, os nomes e a visibilidade dos itens do menu',
 };
 
 const ESCAPER = {
@@ -46,6 +48,12 @@ const ICONS = {
   activity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>',
   category: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24H5a2 2 0 0 0-2 2v4.59A2 2 0 0 0 3.59 11l9.58 9.59a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
   grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 8 10 8a9.74 9.74 0 0 0 5.39-1.61"/><path d="m2 2 20 20"/></svg>',
+  arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>',
+  arrowDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
   phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
   whatsapp: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>',
   lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
@@ -71,6 +79,7 @@ const PAGE_ICONS = {
   pacientes: 'users',
   servicos: 'activity',
   categorias: 'category',
+  menu: 'menu',
 };
 
 let currentPage = 'dashboard';
@@ -81,6 +90,7 @@ let pendingCategoria = null;
 let apiOnline = false;
 let navMeta = [];
 let navItemIndex = {};
+let menuConfig = null;
 
 // ---------------------------------------------------------------
 // Autenticação (modo público vs modo administrador)
@@ -131,6 +141,7 @@ async function initAuth() {
   }
   aplicarModoInterface();
   if (isAdmin) {
+    menuConfig = await carregarMenuConfigDaApi();
     montarNavMeta([]);
     renderNav();
     navegar('dashboard');
@@ -186,50 +197,10 @@ async function abrirLogin() {
         <input type="password" id="loginToken" name="token" placeholder="Digite o token do administrador" required autocomplete="current-password">
       </div>
       <p class="login-hint">O modo administrador permite gerenciar pacientes, médicos, serviços e agendamentos.</p>
-      <p class="login-switch"><button type="button" class="link-btn" onclick="mostrarLoginCodigo()">Entrar com código de acesso móvel</button></p>
     </form>`;
   configurarSalvarAdmin();
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('loginToken')?.focus(), 60);
-}
-
-function mostrarLoginCodigo() {
-  document.getElementById('modalTitle').textContent = 'Acesso pelo código';
-  document.getElementById('modalBody').innerHTML = `
-    <form id="formLoginOtp" onsubmit="validarCodigoCelular();return false">
-      <div class="form-group">
-        <label>Código de acesso <span class="req">*</span></label>
-        <input type="text" id="loginOtp" name="code" placeholder="6 dígitos" maxlength="6" inputmode="numeric" required>
-      </div>
-      <p class="login-hint">Digite o código gerado pelo botão "Celular" do modo administrador. Ele é válido por ~1 minuto.</p>
-      <p class="login-switch"><button type="button" class="link-btn" onclick="abrirLogin()">Voltar ao token</button></p>
-    </form>`;
-  configurarSalvarOtp();
-  setTimeout(() => document.getElementById('loginOtp')?.focus(), 60);
-}
-
-async function validarCodigoCelular() {
-  const code = String(document.getElementById('loginOtp')?.value || '').replace(/\D/g, '');
-  if (code.length !== 6) { mostrarToast('Informe o código de 6 dígitos', 'error'); return; }
-  const btn = document.getElementById('btnSalvar');
-  if (btn) btn.disabled = true;
-  try {
-    const r = await API.otpValidate(code);
-    setStoredToken(r.token);
-    isAdmin = true;
-    aplicarModoInterface();
-    montarNavMeta([]);
-    renderNav();
-    fecharModal();
-    mostrarToast('Bem-vindo, administrador!', 'success');
-    navegar('dashboard');
-    refreshMenu();
-    carregarContagens();
-  } catch (err) {
-    mostrarToast(err.message, 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
 }
 
 async function entrarAdmin() {
@@ -271,12 +242,6 @@ function configurarSalvarAdmin() {
   b.textContent = 'Entrar';
   b.onclick = entrarAdmin;
   b.style.display = 'inline-flex';
-}
-
-function configurarSalvarOtp() {
-  const b = document.getElementById('btnSalvar');
-  b.textContent = 'Validar';
-  b.onclick = validarCodigoCelular;
 }
 
 function configurarSalvarPadrao() {
@@ -328,10 +293,8 @@ async function gerarCodigoQr() {
       <div class="qr-panel">
         <p class="qr-title">Escaneie com a câmera do celular</p>
         <img class="qr-img" src="${qrSrc}" alt="QR Code de acesso" width="240" height="240">
-        <div class="qr-or">ou digite o código de acesso</div>
-        <div class="qr-code"><code id="qrCode">${r.code}</code></div>
         <p class="qr-timer">Válido por <b id="qrTimer">${secs}</b> s</p>
-        <p class="qr-hint">No celular: escaneie o QR <b>ou</b> clique em <b>Entrar</b> e escolha "código de acesso móvel".</p>
+        <p class="qr-hint">No celular, aponte a câmera para o QR Code. O login acontece automaticamente — sem digitar nada.</p>
         <button class="btn btn-secondary btn-block" type="button" onclick="gerarCodigoQr()">Gerar novo código</button>
       </div>`;
     window._qrExpAt = Date.now() + (r.ttl || 60000);
@@ -413,6 +376,38 @@ function montarNavMeta(tables) {
   });
   navItemIndex = {};
   navMeta.forEach((m, i) => { navItemIndex[m.id] = i; });
+  aplicarConfigMenu();
+}
+
+async function carregarMenuConfigDaApi() {
+  try {
+    const r = await API.getConfig('menu');
+    const parsed = (r && r.valor) ? JSON.parse(r.valor) : null;
+    if (parsed && Array.isArray(parsed.items)) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function aplicarConfigMenu() {
+  if (!menuConfig || !Array.isArray(menuConfig.items) || menuConfig.items.length === 0) return;
+  const base = navMeta;
+  const byId = {};
+  base.forEach(m => { byId[m.id] = m; });
+  const ordered = [];
+  const used = new Set();
+  menuConfig.items.forEach(cfg => {
+    const m = byId[cfg.id];
+    if (!m) return;
+    if (typeof cfg.label === 'string' && cfg.label.trim()) m.label = cfg.label.trim();
+    if (typeof cfg.section === 'string' && cfg.section.trim()) m.section = cfg.section.trim();
+    m.visible = cfg.visible !== false;
+    ordered.push(m);
+    used.add(m.id);
+  });
+  base.forEach(m => { if (!used.has(m.id)) ordered.push(m); });
+  navMeta = ordered;
 }
 
 function criarNavItem(meta) {
@@ -434,8 +429,9 @@ function criarNavItem(meta) {
 function renderTopNav() {
   const nav = document.getElementById('topNav');
   nav.innerHTML = '';
-  nav.dataset.count = String(navMeta.length);
-  navMeta.forEach(m => nav.appendChild(criarNavItem(m)));
+  const visiveis = navMeta.filter(m => m.visible !== false);
+  nav.dataset.count = String(visiveis.length);
+  visiveis.forEach(m => nav.appendChild(criarNavItem(m)));
   const moreWrap = document.createElement('div');
   moreWrap.className = 'nav-more hidden';
   moreWrap.innerHTML = `<button type="button" class="nav-more-toggle" onclick="toggleMore(event)" aria-label="Mais itens"><span class="nav-label">Mais</span><span class="icon chev">${ICONS.chevronDown}</span></button><div class="more-drop hidden" id="navMoreDrop"></div>`;
@@ -447,6 +443,7 @@ function renderDrawerNav() {
   ul.innerHTML = '';
   let lastSection = '';
   navMeta.forEach(m => {
+    if (m.visible === false) return;
     if (m.section !== lastSection) {
       const li = document.createElement('li');
       li.className = 'nav-section-label';
@@ -550,6 +547,7 @@ async function checarStatusApi(force = false) {
 async function refreshMenu() {
   let tables = [];
   try { tables = await API.getTables(); } catch {}
+  menuConfig = await carregarMenuConfigDaApi();
   montarNavMeta(tables);
   if (isAdmin) renderNav();
 }
@@ -603,7 +601,7 @@ function navegar(page) {
   document.getElementById('pageSubtitle').textContent = SUBTITLES[page] || '';
   const iconEl = document.getElementById('pageIcon');
   if (iconEl) iconEl.innerHTML = ICONS[PAGE_ICONS[page] || 'grid'];
-  const showNovo = page !== 'dashboard';
+  const showNovo = page !== 'dashboard' && page !== 'menu';
   const btnNovo = document.getElementById('btnNovo');
   btnNovo.style.display = showNovo ? 'inline-flex' : 'none';
   btnNovo.onclick = () => abrirModal(page);
@@ -619,6 +617,7 @@ async function carregarPagina(page) {
     </div>
   `;
   if (page === 'dashboard') return carregarDashboard(container);
+  if (page === 'menu') return carregarEditorMenu(container);
   return carregarTabela(page, container);
 }
 
@@ -691,6 +690,140 @@ function gerarPainelCategorias(categorias, medicos) {
 function abrirCategoria(categoriaId) {
   pendingCategoria = categoriaId;
   navegar('medicos');
+}
+
+// ---------------------------------------------------------------
+// Personalização do menu (página "Menu")
+// ---------------------------------------------------------------
+let menuDraft = null;
+let menuEditorContainer = null;
+
+function carregarEditorMenu(container) {
+  menuEditorContainer = container;
+  menuDraft = navMeta.map(m => ({
+    id: m.id,
+    label: m.label,
+    section: m.section,
+    visible: m.visible !== false,
+  }));
+  const secOptions = SECTION_ORDER.filter(s => s !== 'Outras tabelas')
+    .concat(SECTION_ORDER.includes('Outras tabelas') ? ['Outras tabelas'] : [])
+    .concat(['Outras tabelas'])
+    .filter((s, i, arr) => s && arr.indexOf(s) === i);
+  const secOptionsHtml = secOptions.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span>Personalização do menu</span>
+      </div>
+      <div class="card-body">
+        <p style="color:var(--text-secondary)">Arraste o conteúdo, use os botões para reordenar, renomear ou ocultar.
+        As alterações valem para todos os visitantes assim que você salvar.</p>
+        <div class="menu-editor-actions">
+          <button type="button" class="btn btn-primary" onclick="salvarConfigMenu()">${ICONS.checkmark}<span>Salvar menu</span></button>
+          <button type="button" class="btn btn-ghost" onclick="restaurarMenuPadrao()">${ICONS.reset}<span>Restaurar padrão</span></button>
+        </div>
+        <div class="menu-editor-list" id="menuEditorList"></div>
+      </div>
+    </div>`;
+  renderMenuEditorList();
+}
+
+const MENU_SECTION_LABELS = SECTION_ORDER.filter(s => s && s !== 'Outras tabelas').concat(['Outras tabelas']);
+
+function renderMenuEditorList() {
+  if (!menuEditorContainer) return;
+  const list = document.getElementById('menuEditorList');
+  if (!list) return;
+  const secOptionsHtml = MENU_SECTION_LABELS.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  list.innerHTML = menuDraft.map((d, i) => `
+    <div class="menu-editor-row${d.id === 'menu' ? ' is-locked' : ''}">
+      <div class="menu-editor-icons">
+        <button type="button" class="menu-editor-btn" onclick="moverItemMenu(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover para cima" aria-label="Mover para cima">${ICONS.arrowUp}</button>
+        <button type="button" class="menu-editor-btn" onclick="moverItemMenu(${i}, 1)" ${i === menuDraft.length - 1 ? 'disabled' : ''} title="Mover para baixo" aria-label="Mover para baixo">${ICONS.arrowDown}</button>
+      </div>
+      <div class="menu-editor-icon-cell">${ICONS[d.icon || 'grid'] || ICONS.grid}</div>
+      <input type="text" class="menu-editor-name" value="${esc(d.label)}" maxlength="40"
+        oninput="renomearItemMenu(${i}, this.value)" aria-label="Nome do item" ${d.id === 'menu' ? 'disabled' : ''}>
+      <select class="menu-editor-section" onchange="mudarSecaoItemMenu(${i}, this.value)" aria-label="Seção do item" ${d.id === 'menu' ? 'disabled' : ''}>
+        ${secOptionsHtml.replace(`<option value="${esc(d.section)}">`, `<option value="${esc(d.section)}" selected>`) }
+      </select>
+      <button type="button" class="menu-editor-btn menu-editor-vis${d.visible ? '' : ' is-off'}" onclick="alternarVisibilidadeMenu(${i})"
+        title="${d.visible ? 'Ocultar do menu' : 'Mostrar no menu'}" aria-label="${d.visible ? 'Ocultar' : 'Mostrar'}" ${d.id === 'menu' ? 'disabled' : ''}>
+        ${d.visible ? ICONS.eye : ICONS.eyeOff}
+      </button>
+    </div>
+  `).join('');
+}
+
+function moverItemMenu(index, dir) {
+  if (!menuDraft) return;
+  const target = index + dir;
+  if (target < 0 || target >= menuDraft.length) return;
+  const tmp = menuDraft[index];
+  menuDraft[index] = menuDraft[target];
+  menuDraft[target] = tmp;
+  renderMenuEditorList();
+}
+
+function renomearItemMenu(index, value) {
+  if (menuDraft && menuDraft[index]) {
+    menuDraft[index].label = value;
+  }
+}
+
+function mudarSecaoItemMenu(index, value) {
+  if (menuDraft && menuDraft[index]) {
+    menuDraft[index].section = value;
+  }
+}
+
+function alternarVisibilidadeMenu(index) {
+  const d = menuDraft[index];
+  if (!d || d.id === 'menu') return;
+  d.visible = !d.visible;
+  renderMenuEditorList();
+}
+
+async function salvarConfigMenu() {
+  if (!menuDraft) return;
+  const items = menuDraft.map(d => ({
+    id: d.id,
+    label: String(d.label || '').trim() || null,
+    section: d.section,
+    visible: d.visible,
+  }));
+  const payload = JSON.stringify({ items });
+  const btn = document.querySelector('.menu-editor-actions .btn-primary');
+  const prev = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span>Salvando...</span>'; }
+  try {
+    await API.saveConfig('menu', payload);
+    menuConfig = JSON.parse(payload);
+    mostrarToast('Menu salvo com sucesso', 'success');
+    await refreshMenu();
+    if (currentPage === 'menu') renderMenuEditorList();
+  } catch (err) {
+    mostrarToast('Erro ao salvar menu: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = prev; }
+  }
+}
+
+async function restaurarMenuPadrao() {
+  const payload = JSON.stringify({ items: [] });
+  const btn = document.querySelector('.menu-editor-actions .btn-ghost');
+  try {
+    await API.saveConfig('menu', payload);
+    menuConfig = { items: [] };
+    mostrarToast('Menu restaurado para o padrão', 'success');
+    await refreshMenu();
+    if (currentPage === 'menu') carregarEditorMenu(menuEditorContainer || document.getElementById('pageContent'));
+  } catch (err) {
+    mostrarToast('Erro ao restaurar menu: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ---------------------------------------------------------------
