@@ -51,6 +51,7 @@ const ICONS = {
   lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
   shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
+  device: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>',
 };
 
 const STATS = [
@@ -105,14 +106,27 @@ function initAuthState() {
 }
 
 async function initAuth() {
-  initAuthState();
-  if (isAdmin) {
+  const otpCode = verificarOtpNaUrl();
+  if (otpCode) {
     try {
-      const ok = await API.checkAuth();
-      if (!ok) { setStoredToken(null); isAdmin = false; }
-    } catch {
+      const r = await API.otpValidate(otpCode);
+      setStoredToken(r.token);
+      isAdmin = true;
+    } catch (err) {
       setStoredToken(null);
       isAdmin = false;
+      mostrarToast('Código inválido ou expirado: ' + err.message, 'error');
+    }
+  } else {
+    initAuthState();
+    if (isAdmin) {
+      try {
+        const ok = await API.checkAuth();
+        if (!ok) { setStoredToken(null); isAdmin = false; }
+      } catch {
+        setStoredToken(null);
+        isAdmin = false;
+      }
     }
   }
   aplicarModoInterface();
@@ -153,6 +167,11 @@ function aplicarModoInterface() {
   update(document.getElementById('btnAdminAuthDrawer'));
   const btnNovo = document.getElementById('btnNovo');
   if (!isAdmin && btnNovo) btnNovo.style.display = 'none';
+  const btnQr = document.getElementById('btnQrAcesso');
+  if (btnQr) {
+    btnQr.style.display = isAdmin ? 'inline-flex' : 'none';
+    btnQr.innerHTML = `${ICONS.device}${isAdmin ? '<span class="btn-label">Celular</span>' : ''}`;
+  }
 }
 
 async function abrirLogin() {
@@ -167,10 +186,50 @@ async function abrirLogin() {
         <input type="password" id="loginToken" name="token" placeholder="Digite o token do administrador" required autocomplete="current-password">
       </div>
       <p class="login-hint">O modo administrador permite gerenciar pacientes, médicos, serviços e agendamentos.</p>
+      <p class="login-switch"><button type="button" class="link-btn" onclick="mostrarLoginCodigo()">Entrar com código de acesso móvel</button></p>
     </form>`;
   configurarSalvarAdmin();
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('loginToken')?.focus(), 60);
+}
+
+function mostrarLoginCodigo() {
+  document.getElementById('modalTitle').textContent = 'Acesso pelo código';
+  document.getElementById('modalBody').innerHTML = `
+    <form id="formLoginOtp" onsubmit="validarCodigoCelular();return false">
+      <div class="form-group">
+        <label>Código de acesso <span class="req">*</span></label>
+        <input type="text" id="loginOtp" name="code" placeholder="6 dígitos" maxlength="6" inputmode="numeric" required>
+      </div>
+      <p class="login-hint">Digite o código gerado pelo botão "Celular" do modo administrador. Ele é válido por ~1 minuto.</p>
+      <p class="login-switch"><button type="button" class="link-btn" onclick="abrirLogin()">Voltar ao token</button></p>
+    </form>`;
+  configurarSalvarOtp();
+  setTimeout(() => document.getElementById('loginOtp')?.focus(), 60);
+}
+
+async function validarCodigoCelular() {
+  const code = String(document.getElementById('loginOtp')?.value || '').replace(/\D/g, '');
+  if (code.length !== 6) { mostrarToast('Informe o código de 6 dígitos', 'error'); return; }
+  const btn = document.getElementById('btnSalvar');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await API.otpValidate(code);
+    setStoredToken(r.token);
+    isAdmin = true;
+    aplicarModoInterface();
+    montarNavMeta([]);
+    renderNav();
+    fecharModal();
+    mostrarToast('Bem-vindo, administrador!', 'success');
+    navegar('dashboard');
+    refreshMenu();
+    carregarContagens();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function entrarAdmin() {
@@ -207,16 +266,89 @@ function sairAdmin() {
   mostrarToast('Você saiu do modo administrador', 'success');
 }
 
-function configurarSalvarPadrao() {
-  const b = document.getElementById('btnSalvar');
-  b.textContent = 'Salvar';
-  b.onclick = salvarRegistro;
-}
-
 function configurarSalvarAdmin() {
   const b = document.getElementById('btnSalvar');
   b.textContent = 'Entrar';
   b.onclick = entrarAdmin;
+  b.style.display = 'inline-flex';
+}
+
+function configurarSalvarOtp() {
+  const b = document.getElementById('btnSalvar');
+  b.textContent = 'Validar';
+  b.onclick = validarCodigoCelular;
+}
+
+function configurarSalvarPadrao() {
+  const b = document.getElementById('btnSalvar');
+  b.textContent = 'Salvar';
+  b.onclick = salvarRegistro;
+  b.style.display = 'inline-flex';
+}
+
+// ---------------------------------------------------------------
+// Acesso pelo celular — QR com OTP de uso único
+// ---------------------------------------------------------------
+function verificarOtpNaUrl() {
+  const m = /^#otp=(\d{6})/.exec(location.hash);
+  if (!m) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  return m[1];
+}
+
+async function abrirModalQr() {
+  if (!exigirAdmin()) return;
+  editId = null;
+  currentEntity = '';
+  document.getElementById('modalTitle').textContent = 'Acesso pelo celular';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="qr-loading">
+      <div class="skeleton" style="height:220px"></div>
+    </div>`;
+  const btnSalvar = document.getElementById('btnSalvar');
+  btnSalvar.style.display = 'none';
+  document.getElementById('modalOverlay').classList.add('open');
+  await gerarCodigoQr();
+}
+
+async function gerarCodigoQr() {
+  const body = document.getElementById('modalBody');
+  if (!body) return;
+  clearInterval(window._qrTimer);
+  body.innerHTML = `
+    <div class="qr-loading">
+      <p style="text-align:center;color:var(--text-tertiary);padding:40px 0">Gerando código...</p>
+    </div>`;
+  try {
+    const r = await API.otpGenerate();
+    const url = `${location.origin}${location.pathname}#otp=${r.code}`;
+    const secs = Math.max(1, Math.round((r.ttl || 60000) / 1000));
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&qzone=1&data=${encodeURIComponent(url)}`;
+    body.innerHTML = `
+      <div class="qr-panel">
+        <p class="qr-title">Escaneie com a câmera do celular</p>
+        <img class="qr-img" src="${qrSrc}" alt="QR Code de acesso" width="240" height="240">
+        <div class="qr-or">ou digite o código de acesso</div>
+        <div class="qr-code"><code id="qrCode">${r.code}</code></div>
+        <p class="qr-timer">Válido por <b id="qrTimer">${secs}</b> s</p>
+        <p class="qr-hint">No celular: escaneie o QR <b>ou</b> clique em <b>Entrar</b> e escolha "código de acesso móvel".</p>
+        <button class="btn btn-secondary btn-block" type="button" onclick="gerarCodigoQr()">Gerar novo código</button>
+      </div>`;
+    window._qrExpAt = Date.now() + (r.ttl || 60000);
+    window._qrTimer = setInterval(() => {
+      const left = Math.max(0, Math.round((window._qrExpAt - Date.now()) / 1000));
+      const el = document.getElementById('qrTimer');
+      if (el) el.textContent = left;
+      if (left <= 0) {
+        clearInterval(window._qrTimer);
+        mostrarToast('Código expirado — gere um novo', 'error');
+      }
+    }, 1000);
+  } catch (err) {
+    body.innerHTML = `
+      <p style="color:var(--danger);text-align:center;padding:30px 0">${esc(err.message)}</p>
+      <button class="btn btn-secondary btn-block" type="button" onclick="gerarCodigoQr()">Tentar novamente</button>`;
+  }
 }
 
 // ---------------------------------------------------------------
@@ -967,6 +1099,8 @@ async function editarRegistro(entity, id) {
 function fecharModal() {
   document.getElementById('modalOverlay').classList.remove('open');
   editId = null;
+  clearInterval(window._qrTimer);
+  window._qrTimer = null;
   configurarSalvarPadrao();
 }
 

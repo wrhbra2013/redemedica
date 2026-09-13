@@ -63,6 +63,34 @@ const API = {
     return data;
   },
 
+  async otpGenerate() {
+    const res = await fetch(`${this.baseURL}/api/auth/otp/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this._token || ''}`,
+      },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data && data.error) || 'Falha ao gerar código');
+    }
+    return data;
+  },
+
+  async otpValidate(code) {
+    const res = await fetch(`${this.baseURL}/api/auth/otp/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error((data && data.error) || 'Código inválido');
+    }
+    return data;
+  },
+
   get(table, id = null) { return this.request('GET', table, null, id); },
   create(table, data) { return this.request('POST', table, data); },
   update(table, id, data) { return this.request('PUT', table, data, id); },

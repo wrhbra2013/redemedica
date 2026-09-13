@@ -453,7 +453,68 @@ function isAdminRequest(req) {
   if (!ADMIN_TOKEN) return false;
   const auth = req.headers['authorization'] || '';
   const m = /^Bearer\s+(.+)$/i.exec(auth);
-  return !!(m && m[1] === ADMIN_TOKEN);
+  if (!m) return false;
+  return m[1] === ADMIN_TOKEN || validarTokenSessao(m[1]);
+}
+
+// --------------------------------------------------------------
+// Acesso móvel via QR — OTP de uso único + token de sessão curto
+// --------------------------------------------------------------
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8h
+const OTP_TTL_MS = 60 * 1000; // 60s
+const OTP_MAX_ATTEMPTS = 5;
+
+const otpStore = new Map();
+const rateBuckets = new Map();
+const RATE_VALIDATE = { windowMs: 60 * 1000, max: 8 };
+const RATE_GENERATE = { windowMs: 60 * 1000, max: 12 };
+
+function checarRateLimit(key, windowMs, max) {
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || bucket.windowStart + windowMs < now) {
+    rateBuckets.set(key, { windowStart: now, count: 1 });
+    return true;
+  }
+  bucket.count += 1;
+  return bucket.count <= max;
+}
+
+function mintSessionToken() {
+  const payload = Buffer.from(JSON.stringify({ role: 'admin', exp: Date.now() + SESSION_TTL_MS })).toString('base64url');
+  const sig = crypto.createHmac('sha256', ADMIN_TOKEN).update(payload).digest('base64url');
+  return payload + '.' + sig;
+}
+
+function validarTokenSessao(token) {
+  if (typeof token !== 'string' || !ADMIN_TOKEN) return false;
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const exp = crypto.createHmac('sha256', ADMIN_TOKEN).update(parts[0]).digest('base64url');
+  if (exp !== parts[1]) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    return payload.role === 'admin' && typeof payload.exp === 'number' && payload.exp > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function gerarCodigoOtp() {
+  pruneOtps();
+  let code;
+  do {
+    code = String(Math.floor(100000 + Math.random() * 900000));
+  } while (otpStore.has(code));
+  otpStore.set(code, { exp: Date.now() + OTP_TTL_MS, attempts: 0, used: false });
+  return code;
+}
+
+function pruneOtps() {
+  const now = Date.now();
+  for (const [c, e] of otpStore) {
+    if (e.used || e.exp < now || e.attempts >= OTP_MAX_ATTEMPTS) otpStore.delete(c);
+  }
 }
 
 // --------------------------------------------------------------
@@ -709,6 +770,55 @@ fastify.post('/api/auth', async (req, res) => {
     return res.send({ ok: true, role: 'admin' });
   }
   return res.code(401).send({ ok: false, error: 'Token inválido' });
+});
+
+fastify.post('/api/auth/otp/generate', async (req, res) => {
+  if (!checarRateLimit('g:' + (req.ip || 'unknown'), RATE_GENERATE.windowMs, RATE_GENERATE.max)) {
+    return res.code(429).send({ error: 'Muitas solicitações — aguarde 1 minuto' });
+  }
+  if (!isAdminRequest(req)) {
+    return res.code(401).send({ error: 'Acesso restrito ao administrador' });
+  }
+  const code = gerarCodigoOtp();
+  return res.send({
+    ok: true,
+    code,
+    ttl: OTP_TTL_MS,
+    expira: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+  });
+});
+
+fastify.post('/api/auth/otp/validate', async (req, res) => {
+  if (!checarRateLimit('v:' + (req.ip || 'unknown'), RATE_VALIDATE.windowMs, RATE_VALIDATE.max)) {
+    return res.code(429).send({ error: 'Muitas tentativas — aguarde 1 minuto' });
+  }
+  const body = (req.body && typeof req.body === 'object') ? req.body : {};
+  const code = String(body.code || '').replace(/\D/g, '');
+  if (!/^\d{6}$/.test(code)) {
+    return res.code(400).send({ error: 'Código inválido — informe 6 dígitos' });
+  }
+  pruneOtps();
+  const entry = otpStore.get(code);
+  if (!entry) {
+    return res.code(401).send({ error: 'Código inválido ou expirado' });
+  }
+  if (entry.used) {
+    otpStore.delete(code);
+    return res.code(401).send({ error: 'Código já utilizado' });
+  }
+  if (Date.now() > entry.exp) {
+    otpStore.delete(code);
+    return res.code(401).send({ error: 'Código expirado — gere um novo' });
+  }
+  entry.attempts += 1;
+  if (entry.attempts > OTP_MAX_ATTEMPTS) {
+    otpStore.delete(code);
+    return res.code(401).send({ error: 'Muitas tentativas — gere um novo código' });
+  }
+  const token = mintSessionToken();
+  entry.used = true;
+  otpStore.delete(code);
+  return res.send({ ok: true, role: 'admin', token, expiresIn: SESSION_TTL_MS });
 });
 
 fastify.get('/api/auth/check', async (req, res) => {
