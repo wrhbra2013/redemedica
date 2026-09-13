@@ -441,6 +441,21 @@ const validateId = (id) => /^[a-zA-Z0-9_-]{1,128}$/.test(id);
 const tableColumns = (table) => (hasTable(table) ? TABLE_DEFS[table].columns : []);
 const hasTable = (table) => Object.prototype.hasOwnProperty.call(TABLE_DEFS, table);
 
+// --------------------------------------------------------------
+// Autenticação — modo público (apenas pedidos de consulta) vs
+// modo administrador (CRUD completo). Token definido em API_TOKEN.
+// --------------------------------------------------------------
+const ADMIN_TOKEN = process.env.API_TOKEN || process.env.API_WRITE_KEY || '';
+const PUBLIC_READ_TABLES = ['servicos', 'categorias', 'medicos'];
+const PUBLIC_CREATE_TABLES = ['agendamentos'];
+
+function isAdminRequest(req) {
+  if (!ADMIN_TOKEN) return false;
+  const auth = req.headers['authorization'] || '';
+  const m = /^Bearer\s+(.+)$/i.exec(auth);
+  return !!(m && m[1] === ADMIN_TOKEN);
+}
+
 function ensureBaseTables(database) {
   database.exec('CREATE TABLE IF NOT EXISTS "_schema" (id TEXT PRIMARY KEY, table_name TEXT UNIQUE, def TEXT, created_at TEXT)');
 }
@@ -499,6 +514,9 @@ fastify.get('/:project/:table', async (req, res) => {
   if (!validateProject(project) || !validateTable(table) || !hasTable(table)) {
     return res.code(400).send({ error: 'Invalid request' });
   }
+  if (!PUBLIC_READ_TABLES.includes(table) && !isAdminRequest(req)) {
+    return res.code(401).send({ error: 'Acesso restrito ao administrador' });
+  }
   if (id) {
     if (!validateId(id)) return res.code(400).send({ error: 'Invalid id' });
     const row = getDb().prepare('SELECT * FROM "' + table + '" WHERE id = ?').get(id);
@@ -512,6 +530,9 @@ fastify.post('/:project/:table', async (req, res) => {
   const { project, table } = req.params;
   if (!validateProject(project) || !validateTable(table) || !hasTable(table)) {
     return res.code(400).send({ error: 'Invalid request' });
+  }
+  if (!PUBLIC_CREATE_TABLES.includes(table) && !isAdminRequest(req)) {
+    return res.code(401).send({ error: 'Acesso restrito ao administrador' });
   }
   const data = (req.body && typeof req.body === 'object') ? req.body : {};
   const allowed = tableColumns(table);
@@ -539,6 +560,9 @@ fastify.put('/:project/:table', async (req, res) => {
   if (!validateProject(project) || !validateTable(table) || !hasTable(table) || !validateId(id)) {
     return res.code(400).send({ error: 'Invalid request' });
   }
+  if (!isAdminRequest(req)) {
+    return res.code(401).send({ error: 'Acesso restrito ao administrador' });
+  }
   const data = (req.body && typeof req.body === 'object') ? req.body : {};
   const allowed = tableColumns(table);
   const clean = {};
@@ -563,6 +587,9 @@ fastify.delete('/:project/:table', async (req, res) => {
   const { id } = req.query;
   if (!validateProject(project) || !validateTable(table) || !hasTable(table) || !validateId(id)) {
     return res.code(400).send({ error: 'Invalid request' });
+  }
+  if (!isAdminRequest(req)) {
+    return res.code(401).send({ error: 'Acesso restrito ao administrador' });
   }
   const row = getDb().prepare('DELETE FROM "' + table + '" WHERE id = ? RETURNING id').get(id);
   if (!row) return res.code(404).send({ error: 'Not found' });
@@ -646,6 +673,22 @@ fastify.post('/api/table/drop', async (req, res) => {
   } catch (e) {
     return res.code(500).send({ error: e.message });
   }
+});
+
+fastify.post('/api/auth', async (req, res) => {
+  const body = (req.body && typeof req.body === 'object') ? req.body : {};
+  const token = String(body.token || '');
+  if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
+    return res.send({ ok: true, role: 'admin' });
+  }
+  return res.code(401).send({ ok: false, error: 'Token inválido' });
+});
+
+fastify.get('/api/auth/check', async (req, res) => {
+  if (isAdminRequest(req)) {
+    return res.send({ ok: true, role: 'admin' });
+  }
+  return res.code(401).send({ ok: false, error: 'Não autenticado' });
 });
 
 fastify.setNotFoundHandler(async (req, res) => {
@@ -856,6 +899,9 @@ echo ""
 echo "  API URL:  https://${APP_DOMAIN}/${COMPOSE_PROJECT_NAME}/  (site: GitHub Pages)"
 echo "  Porta:    ${APP_PORT}  |  Docker: ${COMPOSE_PROJECT_NAME}"
 echo "  .env:     ${INSTALL_DIR}/.env"
+echo ""
+echo "  Modo administrador: token de acesso em API_TOKEN no .env"
+echo "  Modo público:       apenas pedidos de consulta (cria agendamentos)"
 echo ""
 echo "  Comandos úteis:"
 echo "    Logs:     $DOCKER_COMPOSE_CMD -f $INSTALL_DIR/docker-compose.yml logs -f"

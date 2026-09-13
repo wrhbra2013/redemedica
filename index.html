@@ -28,6 +28,7 @@
       <nav class="top-nav" id="topNav" aria-label="Navegação principal"></nav>
 
       <div class="header-actions">
+        <button class="btn btn-secondary header-admin-btn" id="btnAdminAuth" onclick="alternarAutenticacao()"></button>
         <div class="api-pill" id="apiPill" title="Clique para reconectar caso offline">
           <span class="status-dot" id="statusDot"></span>
           <span class="api-pill-text" id="apiStatusText">Conectando...</span>
@@ -60,11 +61,14 @@
     <ul class="drawer-nav" id="drawerNav"></ul>
 
     <div class="drawer-footer">
-      <div class="api-pill" id="apiPillDrawer" title="Clique para reconectar caso offline">
-        <span class="status-dot" id="statusDotDrawer"></span>
-        <span class="api-pill-text" id="apiStatusTextDrawer">Conectando...</span>
+      <button class="btn btn-secondary btn-sm drawer-admin-btn" id="btnAdminAuthDrawer" onclick="alternarAutenticacao()"></button>
+      <div class="drawer-footer-row">
+        <div class="api-pill" id="apiPillDrawer" title="Clique para reconectar caso offline">
+          <span class="status-dot" id="statusDotDrawer"></span>
+          <span class="api-pill-text" id="apiStatusTextDrawer">Conectando...</span>
+        </div>
+        <span class="drawer-meta">v1.0.0</span>
       </div>
-      <span class="drawer-meta">v1.0.0</span>
     </div>
   </nav>
 

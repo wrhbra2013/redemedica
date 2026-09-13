@@ -10,6 +10,9 @@ const API = {
       method,
       headers: { 'Content-Type': 'application/json' },
     };
+    if (this._token) {
+      opts.headers['Authorization'] = `Bearer ${this._token}`;
+    }
     if (data && (method === 'POST' || method === 'PUT')) {
       opts.body = JSON.stringify(data);
     }
@@ -18,6 +21,35 @@ const API = {
     const text = await res.text();
     if (!res.ok) throw new Error(text || 'Erro na requisição');
     try { return JSON.parse(text); } catch { return text; }
+  },
+
+  setToken(token) { this._token = token || null; },
+
+  async login(token) {
+    const res = await fetch(`${this.baseURL}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error((data && data.error) || 'Token inválido');
+    }
+    this._token = token;
+    return true;
+  },
+
+  async checkAuth() {
+    if (!this._token) return false;
+    try {
+      const res = await fetch(`${this.baseURL}/api/auth/check`, {
+        headers: { Authorization: `Bearer ${this._token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      return res.ok && !!data.ok;
+    } catch {
+      return false;
+    }
   },
 
   get(table, id = null) { return this.request('GET', table, null, id); },

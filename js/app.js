@@ -48,6 +48,9 @@ const ICONS = {
   grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
   phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
   whatsapp: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
+  logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
 };
 
 const STATS = [
@@ -77,6 +80,144 @@ let pendingCategoria = null;
 let apiOnline = false;
 let navMeta = [];
 let navItemIndex = {};
+
+// ---------------------------------------------------------------
+// Autenticação (modo público vs modo administrador)
+// ---------------------------------------------------------------
+const AUTH_KEY = 'redemedica-admin-token';
+let isAdmin = false;
+
+function getStoredToken() {
+  try { return sessionStorage.getItem(AUTH_KEY) || null; } catch { return null; }
+}
+
+function setStoredToken(t) {
+  try {
+    if (t) sessionStorage.setItem(AUTH_KEY, t);
+    else sessionStorage.removeItem(AUTH_KEY);
+  } catch {}
+  API.setToken(t);
+}
+
+function initAuthState() {
+  setStoredToken(getStoredToken());
+  isAdmin = !!getStoredToken();
+}
+
+async function initAuth() {
+  initAuthState();
+  if (isAdmin) {
+    try {
+      const ok = await API.checkAuth();
+      if (!ok) { setStoredToken(null); isAdmin = false; }
+    } catch {
+      setStoredToken(null);
+      isAdmin = false;
+    }
+  }
+  aplicarModoInterface();
+  if (isAdmin) {
+    montarNavMeta([]);
+    renderNav();
+    navegar('dashboard');
+  } else {
+    carregarPublicPage();
+  }
+}
+
+function exigirAdmin() {
+  if (isAdmin) return true;
+  mostrarToast('Acesso restrito ao administrador', 'error');
+  abrirLogin();
+  return false;
+}
+
+function alternarAutenticacao() {
+  if (isAdmin) sairAdmin();
+  else abrirLogin();
+}
+
+function aplicarModoInterface() {
+  document.body.classList.toggle('public-mode', !isAdmin);
+  const update = el => {
+    if (!el) return;
+    if (isAdmin) {
+      el.innerHTML = `${ICONS.logout}<span class="btn-label">Sair</span>`;
+      el.title = 'Sair do modo administrador';
+    } else {
+      el.innerHTML = `${ICONS.shield}<span class="btn-label">Entrar</span>`;
+      el.title = 'Acesso do administrador';
+    }
+  };
+  update(document.getElementById('btnAdminAuth'));
+  update(document.getElementById('btnAdminAuthDrawer'));
+  const btnNovo = document.getElementById('btnNovo');
+  if (!isAdmin && btnNovo) btnNovo.style.display = 'none';
+}
+
+async function abrirLogin() {
+  if (isAdmin) return;
+  editId = null;
+  currentEntity = '';
+  document.getElementById('modalTitle').textContent = 'Acesso Administrador';
+  document.getElementById('modalBody').innerHTML = `
+    <form id="formLogin" onsubmit="entrarAdmin();return false">
+      <div class="form-group">
+        <label>Token de acesso <span class="req">*</span></label>
+        <input type="password" id="loginToken" name="token" placeholder="Digite o token do administrador" required autocomplete="current-password">
+      </div>
+      <p class="login-hint">O modo administrador permite gerenciar pacientes, médicos, serviços e agendamentos.</p>
+    </form>`;
+  configurarSalvarAdmin();
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('loginToken')?.focus(), 60);
+}
+
+async function entrarAdmin() {
+  if (isAdmin) return;
+  const token = document.getElementById('loginToken')?.value.trim();
+  if (!token) { mostrarToast('Informe o token de acesso', 'error'); return; }
+  const btn = document.getElementById('btnSalvar');
+  if (btn) btn.disabled = true;
+  try {
+    await API.login(token);
+    setStoredToken(token);
+    isAdmin = true;
+    aplicarModoInterface();
+    montarNavMeta([]);
+    renderNav();
+    fecharModal();
+    mostrarToast('Bem-vindo, administrador!', 'success');
+    navegar('dashboard');
+    refreshMenu();
+    carregarContagens();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function sairAdmin() {
+  setStoredToken(null);
+  isAdmin = false;
+  aplicarModoInterface();
+  fecharModal();
+  carregarPublicPage();
+  mostrarToast('Você saiu do modo administrador', 'success');
+}
+
+function configurarSalvarPadrao() {
+  const b = document.getElementById('btnSalvar');
+  b.textContent = 'Salvar';
+  b.onclick = salvarRegistro;
+}
+
+function configurarSalvarAdmin() {
+  const b = document.getElementById('btnSalvar');
+  b.textContent = 'Entrar';
+  b.onclick = entrarAdmin;
+}
 
 // ---------------------------------------------------------------
 // Tema
@@ -278,11 +419,11 @@ async function refreshMenu() {
   let tables = [];
   try { tables = await API.getTables(); } catch {}
   montarNavMeta(tables);
-  renderNav();
+  if (isAdmin) renderNav();
 }
 
 async function carregarContagens() {
-  if (!apiOnline) return;
+  if (!apiOnline || !isAdmin) return;
   const counts = {};
   await Promise.all(navMeta.map(async m => {
     if (m.id === 'dashboard') return;
@@ -295,7 +436,7 @@ async function carregarContagens() {
 }
 
 async function atualizarContagem(entity) {
-  if (!apiOnline || entity === 'dashboard') return;
+  if (!apiOnline || !isAdmin || entity === 'dashboard') return;
   try {
     const rows = await API.get(entity);
     const n = Array.isArray(rows) ? rows.length : 0;
@@ -319,6 +460,10 @@ function atualizarBadges(counts) {
 // Navegação entre páginas
 // ---------------------------------------------------------------
 function navegar(page) {
+  if (!isAdmin) {
+    carregarPublicPage();
+    return;
+  }
   currentPage = page;
   currentEntity = ENTITIES[page] ? page : '';
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
@@ -414,6 +559,164 @@ function gerarPainelCategorias(categorias, medicos) {
 function abrirCategoria(categoriaId) {
   pendingCategoria = categoriaId;
   navegar('medicos');
+}
+
+// ---------------------------------------------------------------
+// Modo público — somente pedidos de consulta
+// ---------------------------------------------------------------
+async function carregarPublicPage() {
+  currentPage = 'public';
+  currentEntity = '';
+  const container = document.getElementById('pageContent');
+  document.getElementById('pageTitle').textContent = 'Agende sua consulta';
+  document.getElementById('pageSubtitle').textContent = 'Envie seu pedido — confirmamos pelo WhatsApp';
+  const iconEl = document.getElementById('pageIcon');
+  if (iconEl) iconEl.innerHTML = ICONS.stethoscope;
+
+  container.innerHTML = `
+    <div class="skeleton-wrap">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-rows"></div>
+    </div>
+  `;
+
+  try {
+    const [categorias, servicos] = await Promise.all([
+      API.get('categorias').catch(() => []),
+      API.get('servicos').catch(() => []),
+    ]);
+    const ativos = (servicos || []).filter(s => s.ativo !== '0' && s.ativo !== 0);
+    container.innerHTML = `
+      <div class="public-hero">
+        <div class="public-hero-icon">${ICONS.stethoscope}</div>
+        <h1>Bem-vindo à <strong>Rede.Médica</strong></h1>
+        <p>Solicite sua consulta agora. Nossa equipe retornará para confirmar data, horário e profissional pelo WhatsApp.</p>
+      </div>
+      ${gerarCatalogoPublico(categorias || [], ativos)}
+    `;
+  } catch (err) {
+    container.innerHTML = `
+      <div class="card"><div class="card-body">
+        <p style="color:var(--danger)">Erro ao carregar o catálogo: ${esc(err.message)}</p>
+        <button class="btn btn-secondary" style="margin-top:12px" onclick="carregarPublicPage()">Tentar novamente</button>
+      </div></div>`;
+  }
+}
+
+function gerarCatalogoPublico(categorias, servicos) {
+  const cards = servicos.map(s => {
+    const preco = (+s.preco || 0).toFixed(2);
+    return `<div class="servico-card">
+      <div class="servico-cat">${esc(s.categoria || 'Serviço')}</div>
+      <div class="servico-nome">${esc(s.nome)}</div>
+      <div class="servico-meta">
+        <span class="servico-preco">R$ ${preco}</span>
+        ${s.duracao_minutos ? `<span class="servico-duracao">${esc(s.duracao_minutos)} min</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const cats = (categorias || []).map(c =>
+    `<span class="cat-chip">${esc(c.nome)}</span>`
+  ).join('');
+
+  const options = (servicos || []).map(s =>
+    `<option value="${esc(s.id)}" data-nome="${esc(s.nome)}" data-valor="${esc(s.preco)}">${esc(s.nome)} — R$ ${(+s.preco || 0).toFixed(2)}</option>`
+  ).join('');
+
+  return `<div class="public-grid">
+    <div class="card">
+      <div class="card-header">Serviços disponíveis</div>
+      <div class="card-body">
+        ${cards || '<p style="color:var(--text-tertiary);text-align:center">Nenhum serviço disponível no momento.</p>'}
+        ${cats ? `<div class="cat-chips">${cats}</div>` : ''}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Solicitar consulta</div>
+      <div class="card-body">
+        <form id="formConsulta" onsubmit="enviarPedidoConsulta(event)">
+          <div class="form-group">
+            <label>Seu nome <span class="req">*</span></label>
+            <input type="text" name="cliente" placeholder="Nome completo" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Telefone <span class="req">*</span></label>
+              <input type="tel" name="telefone" placeholder="(11) 99999-9999" required>
+            </div>
+            <div class="form-group">
+              <label>WhatsApp</label>
+              <input type="tel" name="whatsapp" placeholder="(11) 99999-9999">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Serviço <span class="req">*</span></label>
+              <select name="servico" required onchange="preencherServicoConsulta()">
+                <option value="">Selecione...</option>
+                ${options}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Data <span class="req">*</span></label>
+              <input type="date" name="data" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Horário desejado <span class="req">*</span></label>
+            <input type="time" name="hora" required>
+          </div>
+          <div class="form-group">
+            <label>Observações</label>
+            <textarea name="observacoes" placeholder="Sintomas, profissional preferido, etc."></textarea>
+          </div>
+          <input type="hidden" name="servico_nome">
+          <input type="hidden" name="valor">
+          <input type="hidden" name="status" value="PENDENTE">
+          <button class="btn btn-primary btn-block" type="submit">Solicitar Consulta</button>
+        </form>
+      </div>
+    </div>
+  </div>`;
+}
+
+function preencherServicoConsulta() {
+  const form = document.getElementById('formConsulta');
+  if (!form) return;
+  const sel = form.querySelector('select[name="servico"]');
+  const opt = sel.selectedOptions && sel.selectedOptions[0];
+  form.querySelector('input[name="servico_nome"]').value = opt && opt.dataset.nome ? opt.dataset.nome : '';
+  form.querySelector('input[name="valor"]').value = opt && opt.dataset.valor ? opt.dataset.valor : '';
+}
+
+async function enviarPedidoConsulta(event) {
+  event.preventDefault();
+  if (!apiOnline) { mostrarToast('API offline — tente novamente em instantes', 'error'); return; }
+  const form = document.getElementById('formConsulta');
+  const btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    const fd = new FormData(form);
+    const data = Object.fromEntries(fd.entries());
+    for (const k of Object.keys(data)) {
+      if (data[k] === '') delete data[k];
+    }
+    await API.create('agendamentos', data);
+    form.innerHTML = `
+      <div class="consulta-success">
+        <div class="consulta-success-icon">${ICONS.calendarCheck}</div>
+        <h3>Pedido recebido!</h3>
+        <p>Registramos a sua solicitação. Retornaremos pelo WhatsApp/telefone para confirmar.</p>
+        <button class="btn btn-secondary" type="button" onclick="carregarPublicPage()">Novo pedido</button>
+      </div>`;
+    mostrarToast('Pedido de consulta enviado!', 'success');
+  } catch (err) {
+    mostrarToast('Erro ao enviar: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ---------------------------------------------------------------
@@ -588,6 +891,8 @@ function filtrarTabela() {
 async function abrirModal(entity) {
   const entityName = entity || currentPage;
   if (entityName === 'dashboard') return;
+  if (!exigirAdmin()) return;
+  configurarSalvarPadrao();
   editId = null;
   document.getElementById('modalTitle').textContent = `Novo ${ENTITIES[entityName]?.label || 'Registro'}`;
   document.getElementById('modalBody').innerHTML = await gerarFormulario(entityName);
@@ -595,6 +900,8 @@ async function abrirModal(entity) {
 }
 
 async function editarRegistro(entity, id) {
+  if (!exigirAdmin()) return;
+  configurarSalvarPadrao();
   editId = id;
   try {
     const data = await API.get(entity, id);
@@ -610,6 +917,7 @@ async function editarRegistro(entity, id) {
 function fecharModal() {
   document.getElementById('modalOverlay').classList.remove('open');
   editId = null;
+  configurarSalvarPadrao();
 }
 
 async function gerarFormulario(entity, data = {}) {
@@ -769,6 +1077,7 @@ async function salvarRegistro() {
 }
 
 async function excluirRegistro(entity, id) {
+  if (!exigirAdmin()) return;
   if (!confirm('Tem certeza que deseja excluir este registro?')) return;
   try {
     await API.delete(entity, id);
@@ -817,9 +1126,8 @@ function initNav() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initNav();
-  montarNavMeta([]);
-  renderNav();
+  aplicarModoInterface();
   checarStatusApi(true);
-  navegar('dashboard');
   setInterval(() => checarStatusApi(false), 15000);
+  initAuth();
 });
