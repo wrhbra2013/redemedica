@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rede.medica — Estratégia de Marketing &amp; Projeções de Mercado</title>
+<meta name="description" content="Apresentação do projeto rede.medica em formato de estratégia de marketing: estatísticas do mercado de saúde digital no Brasil e projeções futuras.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070b14; --bg2:#0c1322; --card:#101a2e; --card2:#0d1526;
+    --line:#1d2a44; --line2:#24344f;
+    --text:#e6edf7; --muted:#93a3bd; --faint:#5f6f8c;
+    --primary:#6366f1; --primary2:#8b5cf6; --accent:#22d3ee; --green:#34d399;
+    --amber:#fbbf24; --rose:#fb7185;
+    --radius:16px;
+    --shadow:0 20px 50px rgba(0,0,0,.45);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 10% -10%, rgba(99,102,241,.16), transparent 55%),
+               radial-gradient(1000px 500px at 110% 15%, rgba(34,211,238,.10), transparent 50%),
+               var(--bg);
+    color:var(--text); line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.brand{font-family:'Sora',var(--font)}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+
+  /* ---------- NAV ---------- */
+  header{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(12px);background:rgba(7,11,20,.78);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+  .nav a{color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;transition:color .2s}
+  .nav a:hover{color:var(--text)}
+  .nav-links{display:flex;gap:22px;align-items:center}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:linear-gradient(135deg,var(--primary),var(--primary2));
+    color:#fff;border:none;padding:10px 18px;border-radius:12px;
+    font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;
+    box-shadow:0 6px 18px rgba(99,102,241,.35);transition:transform .15s,box-shadow .2s;
+  }
+  .btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(99,102,241,.5)}
+  @media(max-width:760px){.nav-links{display:none}}
+
+  /* ---------- HERO ---------- */
+  .hero{padding:78px 0 56px;text-align:center}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.35);
+    color:#c7d2fe;font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;
+  }
+  .hero h1{
+    font-size:clamp(34px,6vw,60px);font-weight:800;line-height:1.08;letter-spacing:-.02em;margin:22px 0 16px;
+  }
+  .hero h1 .grad{background:linear-gradient(90deg,var(--primary),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.sub{font-size:clamp(15px,2.4vw,19px);color:var(--muted);max-width:760px;margin:0 auto}
+  .hero .ctas{display:flex;gap:14px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+  .btn-ghost{background:transparent;border:1px solid var(--line2);color:var(--text);box-shadow:none}
+  .btn-ghost:hover{box-shadow:none;border-color:var(--primary)}
+  .scroll-hint{display:block;margin:44px auto 0;width:20px;height:10px;opacity:.5}
+  .scroll-hint div{width:2px;height:10px;background:var(--muted);margin:0 auto}
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:64px 0}
+  .section-tag{color:var(--accent);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.12em}
+  h2.sec{font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.01em;margin:10px 0 14px}
+  .sec-lead{color:var(--muted);max-width:820px;font-size:15.5px}
+  .grid{display:grid;gap:18px}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .grid-2{grid-template-columns:repeat(2,1fr)}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:960px){.grid-4{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:760px){.grid-3,.grid-2{grid-template-columns:1fr}}
+
+  .card{
+    background:linear-gradient(180deg,var(--card),var(--card2));
+    border:1px solid var(--line);border-radius:var(--radius);padding:26px;
+    transition:transform .2s,border-color .2s;
+  }
+  .card:hover{border-color:var(--line2);transform:translateY(-3px)}
+
+  .stat{position:relative;overflow:hidden}
+  .stat::after{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--primary),var(--accent));opacity:.5}
+  .stat .num{font-family:'Sora';font-weight:800;font-size:clamp(30px,4.5vw,44px);letter-spacing:-.02em;
+    background:linear-gradient(90deg,#fff,var(--primary2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat .k{font-size:clamp(16px,2.5vw,24px)}
+  .stat .lbl{color:var(--muted);font-size:13.5px;margin-top:6px}
+  .stat .src{display:block;color:var(--faint);font-size:11.5px;margin-top:10px}
+
+  .big-num{font-family:'Sora';font-weight:800;background:linear-gradient(90deg,var(--accent),var(--primary));
+    -webkit-background-clip:text;background-clip:text;color:transparent;font-size:clamp(40px,7vw,66px);letter-spacing:-.02em}
+
+  .sub-card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;
+  }
+  .sub-card h4{font-size:15px;margin-bottom:8px}
+  .sub-card p{color:var(--muted);font-size:13.5px}
+  .arrow{color:var(--accent);font-weight:700;margin:0 6px}
+
+  /* pain callout */
+  .pain{
+    border:1px solid rgba(251,113,133,.28);background:linear-gradient(180deg,rgba(251,113,133,.07),transparent);
+    padding:34px;border-radius:var(--radius);
+  }
+  .pain h3{font-size:22px;margin-bottom:14px;color:#fecdd3}
+  .pain ul{list-style:none;display:grid;gap:12px}
+  .pain li{display:flex;gap:12px;color:var(--muted);font-size:14.5px}
+  .pain li b{color:var(--text)}
+
+  /* funnel */
+  .funnel{display:flex;justify-content:center}
+  .step{
+    width:min(320px,80%);padding:20px 24px;text-align:center;
+    background:linear-gradient(180deg,var(--card),var(--card2));
+    border:1px solid var(--line2);border-left:4px solid var(--primary);
+    border-radius:10px;margin-bottom:-8px;
+  }
+  .step:last-child{border-left-color:var(--green)}
+  .step .n{font-family:'Sora';font-weight:800;font-size:30px;background:linear-gradient(90deg,#fff,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .step p{color:var(--muted);font-size:13.5px;margin-top:4px}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--line)}
+  th{color:var(--accent);font-size:12.5px;text-transform:uppercase;letter-spacing:.08em}
+  td{color:var(--muted)}
+  td b{color:var(--text)}
+  tr:hover td{background:rgba(99,102,241,.05)}
+
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.03em}
+  .tag.risk{background:rgba(251,113,133,.15);color:#fda4af}
+  .tag.win{background:rgba(52,211,153,.14);color:#6ee7b7}
+  .tag.mid{background:rgba(251,191,36,.14);color:#fcd34d}
+
+  .cta-band{
+    border-radius:24px;padding:52px 34px;text-align:center;
+    background:linear-gradient(135deg,rgba(99,102,241,.22),rgba(34,211,238,.12));
+    border:1px solid var(--line2);
+  }
+  .cta-band h2{font-size:clamp(26px,4vw,40px);margin-bottom:12px}
+  .cta-band p{color:var(--muted);max-width:640px;margin:0 auto 26px}
+
+  footer{border-top:1px solid var(--line);padding:34px 0 44px;color:var(--faint);font-size:12.5px}
+  footer b{color:var(--muted)}
+  .src-list{margin-top:14px;display:grid;gap:6px}
+  .src-list a{color:var(--muted);text-decoration:underline dotted;text-underline-offset:3px}
+  .src-list a:hover{color:var(--text)}
+
+  .kpi-row{display:grid;grid-template-columns:auto 1fr;gap:12px 18px;align-items:baseline}
+  .kpi-row .num{font-family:'Sora';font-weight:800;font-size:22px;white-space:nowrap}
+  .bar{height:10px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="url(#g)" stroke-width="2" stroke-linecap="round"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M9 21H5a2 2 0 0 1-2-2v-4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/></svg>
+      rede.medica
+    </div>
+    <nav class="nav-links">
+      <a href="#contexto">Contexto</a>
+      <a href="#estatisticas">Estatísticas</a>
+      <a href="#projecoes">Projeções</a>
+      <a href="#estrategia">Estratégia</a>
+      <a href="#riscos">Riscos</a>
+      <a href="#cta" class="btn">Conhecer o projeto</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<div class="hero">
+  <div class="wrap">
+    <span class="chip">● Plataforma de saúde digital · Brasil · 2026</span>
+    <h1>O mercado que faltava é <span class="grad">digital</span>.<br>E ele está no seu celular.</h1>
+    <p class="sub">rede.medica é a plataforma que conecta pacientes a médicos e serviços de saúde com agendamento online, busca por região e integração com WhatsApp — exatamente onde o brasileiro já está: no celular.</p>
+    <div class="ctas">
+      <a class="btn" href="#estatisticas">Ver os números ↓</a>
+      <a class="btn btn-ghost" href="#estrategia">Estratégia de entrada</a>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CONTEXTO ================= -->
+<section id="contexto">
+  <div class="wrap">
+    <span class="section-tag">01 · Contexto</span>
+    <h2 class="sec">O problema que vira oportunidade</h2>
+    <p class="sec-lead">O Brasil tem mais de <b>214 milhões de habitantes</b>, internet em <b>95% dos domicílios</b> e uma das maiores filas de atendimento especializado da sua história. Esse descompasso é o nosso mercado.</p>
+
+    <div class="pain" style="margin-top:28px">
+      <h3>Há uma dor estrutural, medida em números oficiais</h3>
+      <ul>
+        <li><span>🕐</span><span>Espera média de <b>57 dias</b> para uma consulta com especialista no SUS em 2024 — o pior índice da série histórica (O Globo, via LAI).</span></li>
+        <li><span>🚶</span><span>Mais de <b>1,3 milhão de pessoas</b> aguardam cirurgias eletivas no SUS; a fila cresceu <b>26% em 2024</b>.</span></li>
+        <li><span>🌍</span><span>No Rio Grande do Sul, <b>670 mil pacientes</b> esperam por consultas — casos de até <b>7 anos</b> (G1).</span></li>
+        <li><span>🧭</span><span>Especialistas concentrados no Sudeste e na rede privada; o interior e o Norte/Nordeste ficam desassistidos (Demografia Médica 2025).</span></li>
+        <li><span>📴</span><span>Ainda assim, <b>35% dos brasileiros desconfiam</b> do atendimento online e 63% não sabem como funciona a saúde digital — espaço imenso para educação e confiança.</span></li>
+      </ul>
+    </div>
+
+    <div class="grid grid-3" style="margin-top:22px">
+      <div class="sub-card"><h4>📱 O canal certo</h4><p>98,7% dos usuários de internet acessam pelo celular; 167 milhões de brasileiros têm celular pessoal.</p></div>
+      <div class="sub-card"><h4>⚖️ A lei do nosso lado</h4><p>Lei 14.510/2022 + Resolução CFM 2.314/2022 dão validade nacional a teleconsultas, laudos e prescrições.</p></div>
+      <div class="sub-card"><h4>🏛️ O Estado empurrando</h4><p>Programas SUS Digital, Telessaúde e "Agora Tem Especialistas" (Lei 15.233/2025) priorizam atendimento remoto.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ESTATÍSTICAS ================= -->
+<section id="estatisticas" style="background:linear-gradient(180deg,rgba(99,102,241,.05),transparent)">
+  <div class="wrap">
+    <span class="section-tag">02 · Estatísticas do mercado</span>
+    <h2 class="sec">Números que sustentam a decisão de investir agora</h2>
+    <p class="sec-lead">Os indicadores mostram demanda acelerada, capital seguindo o fluxo e adoção crescendo ano após ano.</p>
+
+    <div class="grid grid-4" style="margin-top:30px">
+      <div class="card stat"><span class="num" data-count="244.3" data-decimals="1">244,3</span><span class="k"> bi USD</span><div class="lbl">Telemedicina global em 2026, crescendo &gt;22% a.a.</div><span class="src">Precedence Research</span></div>
+      <div class="card stat"><span class="num" data-count="12.4" data-decimals="1">12,4</span><span class="k"> bi USD</span><div class="lbl">Mercado brasileiro de saúde digital em 2025</div><span class="src">IMARC Group</span></div>
+      <div class="card stat"><span class="num" data-count="8.18" data-decimals="2">8,18</span><span class="k"> bi USD</span><div class="lbl">Telemedicina Brasil projetado para 2030 (CAGR ~17,8%)</div><span class="src">Grand View Research</span></div>
+      <div class="card stat"><span class="num" data-count="78">78</span><span class="k">%</span><div class="lbl">dos brasileiros têm interesse em usar saúde digital</div><span class="src">SESI · Nexus 2025</span></div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:18px">
+      <div class="card stat"><span class="num" data-count="57">57</span><span class="k">%</span><div class="lbl">Agendamento online é o serviço de saúde digital mais desejado — na frente até da teleconsulta (49%)</div><span class="src">SESI · Nexus 2025</span></div>
+      <div class="card stat"><span class="num" data-count="13">13</span><span class="k">% → 34%</span><div class="lbl">Brasileiros que agendaram consulta pela internet cresceram de 13% (2022) para 34% (2023)</div><span class="src">NIC.br · TIC Domicílios</span></div>
+      <div class="card stat"><span class="num" data-count="81">81</span><span class="k">%</span><div class="lbl">avaliam positivamente serviços de saúde digital (era 73% em 2023) — satisfação em alta</div><span class="src">SESI · Nexus 2025</span></div>
+      <div class="card stat"><span class="num" data-count="64.8" data-decimals="1">64,8</span><span class="k">%</span><div class="lbl">dos investimentos em healthtechs da América Latina vão para o Brasil — liderança regional</div><span class="src">HealthTech Recap 2024</span></div>
+    </div>
+
+    <div class="grid grid-3" style="margin-top:18px">
+      <div class="card stat"><span class="num" data-count="90.5" data-decimals="1">90,5</span><span class="k">%</span><div class="lbl">da população (10+ anos) usa internet; 95% dos domicílios conectados</div><span class="src">IBGE · PNAD TIC 2025</span></div>
+      <div class="card stat"><span class="num" data-count="74.5" data-decimals="1">74,5</span><span class="k">%</span><div class="lbl">dos idosos (60+) já usam internet — eram 44,9% em 2019; +29,6 p.p. no período</div><span class="src">IBGE · PNAD TIC 2025</span></div>
+      <div class="card stat"><span class="num" data-count="7.5">7,5</span><span class="k"> mi</span><div class="lbl">teleconsultas realizadas no Brasil em 2020–21 por 52,2 mil médicos</div><span class="src">Saúde Digital Brasil</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PROJEÇÕES ================= -->
+<section id="projecoes">
+  <div class="wrap">
+    <span class="section-tag">03 · Futuro &amp; projeções</span>
+    <h2 class="sec">Aonde o cenário brasileiro aponta</h2>
+
+    <div class="grid grid-3" style="margin-top:30px">
+      <div class="sub-card">
+        <h4>Mercado de saúde digital Brasil</h4>
+        <div class="kpi-row"><span class="num">US$ 12,4 bi</span><span>2025</span></div>
+        <div class="bar"><i style="width:28%"></i></div>
+        <div class="kpi-row" style="margin-top:14px"><span class="num">US$ 44 bi</span><span>2034</span></div>
+        <div class="bar"><i style="width:100%"></i></div>
+        <p style="margin-top:14px">Crescimento médio de <b>15,3% a.a.</b> · fonte: IMARC Group.</p>
+      </div>
+      <div class="sub-card">
+        <h4>Telemedicina Brasil</h4>
+        <div class="kpi-row"><span class="num">US$ 2,44 bi</span><span>2023</span></div>
+        <div class="bar"><i style="width:30%"></i></div>
+        <div class="kpi-row" style="margin-top:14px"><span class="num">US$ 8,18 bi</span><span>2030</span></div>
+        <div class="bar"><i style="width:100%"></i></div>
+        <p style="margin-top:14px">CAGR de <b>17,8%–18,9% até 2030</b> · fonte: Grand View Research.</p>
+      </div>
+      <div class="sub-card">
+        <h4>Adoção pública via SUS</h4>
+        <div class="kpi-row"><span class="num">20%</span><span>usaram saúde digital em 2025</span></div>
+        <div class="bar"><i style="width:20%"></i></div>
+        <div class="kpi-row" style="margin-top:14px"><span class="num">78%</span><span>interesse declarado</span></div>
+        <div class="bar"><i style="width:78%"></i></div>
+        <p style="margin-top:14px">52 milhões de pessoas ainda não usaram, mas querem usar. fonte: SESI · Nexus.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:18px">
+      <div class="card">
+        <h3 style="font-size:19px;margin-bottom:12px">Tendências de longo prazo (2026 → 2034)</h3>
+        <ul style="list-style:none;display:grid;gap:12px;color:var(--muted);font-size:14.5px">
+          <li><b style="color:var(--text)">1 · Celular como porta de entrada:</b> mobile-first deixa de ser opção e vira mínimo obrigatório — 98,7% dos usuários já passam por ali.</li>
+          <li><b style="color:var(--text)">2 · Regulação madura:</b> validade nacional de consultas e laudos + RNDS (Rede Nacional de Dados em Saúde) integrando o SUS desde 2025.</li>
+          <li><b style="color:var(--text)">3 · IA e interoperabilidade:</b> PBIA prevê R$ 23 bi até 2028; um terço dos projetos é de saúde digital.</li>
+          <li><b style="color:var(--text)">4 · Interior e atenção primária:</b> expansão da cobertura > 90% da APS força digitalização das pequenas clínicas do país.</li>
+          <li><b style="color:var(--text)">5 · Envelhecimento digital:</b> idosos conectados crescem ~30p.p. desde 2019 — o público de maior "fidelidade" a sócios e clínicas.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:19px;margin-bottom:12px">Projeção ilustrativa do negócio</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin-bottom:16px">Cenário hipotético usando o mercado brasileiro de saúde digital (US$ 12,4 bi em 2025) como teto endereçável:
+        frações mínimas do mercado já justificam uma operação sustentável de uma plataforma regional.</p>
+        <table>
+          <tr><th>Penetração</th><th>Receita potencial</th><th>Todo anual</th></tr>
+          <tr><td>0,01%</td><td>≈ US$ 1,2 mi</td><td>~R$ 6–7 mi</td></tr>
+          <tr><td>0,05%</td><td>≈ US$ 6,2 mi</td><td>~R$ 30–35 mi</td></tr>
+          <tr><td>0,10%</td><td>≈ US$ 12,4 mi</td><td>~R$ 60–70 mi</td></tr>
+        </table>
+        <p style="color:var(--faint);font-size:12px;margin-top:12px">Valores por ano, em US$ do mercado-alvo; conversão para BRL indicativa (R$ 5,5/US$). Não é promessa de resultado — é dimensionamento de mercado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ESTRATÉGIA ================= -->
+<section id="estrategia" style="background:linear-gradient(180deg,rgba(34,211,238,.05),transparent)">
+  <div class="wrap">
+    <span class="section-tag">04 · Estratégia de marketing</span>
+    <h2 class="sec">Como o rede.medica entra e cresce</h2>
+
+    <h3 style="font-size:17px;margin:26px 0 14px;color:var(--accent)">Posicionamento</h3>
+    <div class="sub-card" style="max-width:820px">
+      <p style="font-size:16px"><b style="color:var(--text)">"Para clínicas, consultórios e profissionais que querem ser achados e lembrados:</b> o rede.medica transforma WhatsApp + site em atendimento digital —<i> sem complicação e sem planilha</i>.<br>
+      <span style="color:var(--muted);display:block;margin-top:8px">Diferente de marketplaces nacionalões, somos locais: falamos com as pessoas <b>da sua região</b>, com busca por cidade/UF no idioma do mundo real.</span></p>
+    </div>
+
+    <h3 style="font-size:17px;margin:30px 0 14px;color:var(--accent)">Funil de captação (go-to-market)</h3>
+    <div class="funnel">
+      <div>
+        <div class="step"><div class="n">1</div><p>Reconhecimento — SEO local "médico perto de mim", Google Perfil e links no WhatsApp</p></div>
+        <div class="step"><div class="n">2</div><p>Conversão — página pública de agendamento com prévia do valor e do profissional</p></div>
+        <div class="step"><div class="n">3</div><p>Contato — pedido de consulta vira conversa no WhatsApp em 1 clique</p></div>
+        <div class="step"><div class="n">4</div><p>Fidelização — profissionais voltam para gerenciar agenda, retenção orgânica</p></div>
+      </div>
+    </div>
+
+    <h3 style="font-size:17px;margin:34px 0 14px;color:var(--accent)">Vantagens competitivas do produto</h3>
+    <div class="grid grid-3">
+      <div class="card"><h4 style="margin-bottom:8px">📅 Agendamento "sem app"</h4><p style="color:var(--muted);font-size:14px">Do navegador para o WhatsApp: nada de instalação. O canal mais usado do país é a porta de entrada.</p></div>
+      <div class="card"><h4 style="margin-bottom:8px">🗺️ Filtro por região/CEP</h4><p style="color:var(--muted);font-size:14px">Busca por UF, cidade e especialidade com dados via CEP — mira no paciente local, em que ninguém mais mira.</p></div>
+      <div class="card"><h4 style="margin-bottom:8px">👨‍⚕️ Vitrine dos profissionais</h4><p style="color:var(--muted);font-size:14px">Médicos e serviços com página pública, preço e contato — criam-se os "perfis" que os pacientes procuram.</p></div>
+      <div class="card"><h4 style="margin-bottom:8px">🛡️ Modo administrador seguro</h4><p style="color:var(--muted);font-size:14px">Acesso via QR-Code com código de uso único (expira em 1 min) e sessão limitada — segurança com conveniência.</p></div>
+      <div class="card"><h4 style="margin-bottom:8px">📊 Gestão simples</h4><p style="color:var(--muted);font-size:14px">Pacientes, médicos, serviços, categorias e agendamentos em um painel único, sem assinatura de software corporativo.</p></div>
+      <div class="card"><h4 style="margin-bottom:8px">💰 Custo de entrada baixo</h4><p style="color:var(--muted);font-size:14px">SaaS leve, infraestrutura própria — mensalidade acessível para clínicas de bairro, não só para redes.</p></div>
+    </div>
+
+    <h3 style="font-size:17px;margin:34px 0 14px;color:var(--accent)">Canais e mensuração (KPIs)</h3>
+    <div class="grid grid-2">
+      <div class="sub-card"><h4>Canais prioritários</h4>
+        <ul style="list-style:none;display:grid;gap:9px;color:var(--muted);font-size:14px;margin-top:8px">
+          <li>· SEO local + Google Perfil de negócio (busca "especialista em [cidade]")</li>
+          <li>· WhatsApp Business com catálogo de serviços</li>
+          <li>· Parcerias com associações médicas e clínicas populares</li>
+          <li>· Conteúdo educativo sobre saúde digital (ataca a barreira dos 63% que desconhecem)</li>
+        </ul>
+      </div>
+      <div class="sub-card"><h4>Métricas de acompanhamento</h4>
+        <table style="margin-top:6px">
+          <tr><td>Agendamentos solicitados</td><td><b>Conversão do funil</b></td></tr>
+          <tr><td>Pedidos confirmados</td><td><b>Confirmação real</b></td></tr>
+          <tr><td>Consultas por profissional</td><td><b>Retenção/uso</b></td></tr>
+          <tr><td>Busca por cidade/UF</td><td><b>Demanda por região</b></td></tr>
+          <tr><td>Médicos cadastrados</td><td><b>Crescimento da oferta</b></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= RISCOS ================= -->
+<section id="riscos">
+  <div class="wrap">
+    <span class="section-tag">05 · Riscos &amp; mitigação</span>
+    <h2 class="sec">Saber para onde o cenário pode doer</h2>
+    <table style="margin-top:20px">
+      <tr><th>Risco</th><th>Peso</th><th>Mitigação</th></tr>
+      <tr><td><b>Desconfiança do atendimento online (35%)</b></td><td><span class="tag mid">médio</span></td><td>Prova social, selo de dados seguros, modo público transparente e educação contínua.</td></tr>
+      <tr><td><b>Concorrência de grandes marketplaces</b></td><td><span class="tag risk">alto</span></td><td>Foco em nicho local e clínicas independentes; agilidade e preço que gigantes não conseguem.</td></tr>
+      <tr><td><b>Acesso desigual à internet no interior</b></td><td><span class="tag mid">médio</span></td><td>Design leve, página estática rápida e rota de escape via WhatsApp com dados móveis.</td></tr>
+      <tr><td><b>Mudanças regulatórias</b></td><td><span class="tag win">baixo</span></td><td>Já nascemos pós-Lei 14.510/22; acompanhar resoluções do CFM em atualizações constantes.</td></tr>
+      <tr><td><b>Segurança de dados (LGPD)</b></td><td><span class="tag win">baixo</span></td><td>Dados mínimos no agendamento público, auth com sessão curta e token de iniciante protegido.</td></tr>
+      <tr><td><b>Dependência de Gateways de pagamento</b></td><td><span class="tag mid">médio</span></td><td>Valor fechado no WhatsApp evita processadora; migrar para Pix/pagamento direto quando escalar.</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= CTA ================= -->
+<section id="cta">
+  <div class="wrap">
+    <div class="cta-band">
+      <span class="chip">⚡ Janela de oportunidade: 2026–2030</span>
+      <h2 style="margin-top:20px">O mercado cresce a dois dígitos.<br>O seu lugar é a porta de entrada.</h2>
+      <p>Enquanto o cenário amadurece (regulação, SUS digital, IA a R$ 23 bi), quem entra primeiro no recorte local constrói distribuição e marca que ninguém copia.</p>
+      <div class="ctas">
+        <a class="btn" href="https://site.redemedica.com/" target="_blank" rel="noopener">Ver o produto ao vivo →</a>
+        <a class="btn btn-ghost" href="mailto:contato@redemedica.com">Falar com a equipe</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>Fontes e bases de dados (acesso em set/2026):</b></p>
+    <div class="src-list">
+      <a href="https://www.grandviewresearch.com/horizon/outlook/telemedicine-market/brazil">Grand View Research — Brazil Telemedicine Market Outlook (US$ 2,44 bi em 2023 → US$ 8,18 bi em 2030)</a>
+      <a href="https://isimarkets.com/pt-br/publications/o-mercado-de-telemedicina-no-brasil-aponta-para-um-forte-potencial-a-longo-prazo">ISI/EMIS — Mercado de telemedicina no Brasil (IMARC: US$ 12,4 bi em 2025 → US$ 44 bi em 2034; HealthTech Recap 2024)</a>
+      <a href="https://precedenceresearch.com/telemedicine-market/">Precedence Research — Mercado global de telemedicina 2026 (US$ 244,3 bi)</a>
+      <a href="https://www.portaldaindustria.com.br/sesi?utm_source=jor&utm_medium=agn&utm_campaign=noticia">SESI/Nexus — Pesquisa Saúde Digital no Brasil 2025 (78% de interesse; 81% de satisfação; 57% agendamento online)</a>
+      <a href="https://nic.br/noticia/na-midia/servicos-i-online-i-para-pacientes-avanca-no-brasil">NIC.br — Serviços online para pacientes (agendamento 13% → 34%)</a>
+      <a href="https://agenciadenoticias.ibge.gov.br/">IBGE — PNAD Contínua TIC 2025 (90,5% internet; 95% domicílios; 74,5% idosos)</a>
+      <a href="https://www.bvsms.saude.gov.br">SUS Digital / Portarias de telessaúde e Rede Nacional de Dados em Saúde (RNDS, 2025)</a>
+      <a href="https://g1.globo.com/rs/rio-grande-do-sul/noticia/2025/11/04/espera-de-ate-7-anos-fila-do-sus-no-rs-nao-diminuiu-nove-meses-apos-medidas-anunciadas-pelo-poder-publico.ghtml">G1 (04/11/2025) — Filas do SUS no RS (670 mil pacientes; até 7 anos)</a>
+      <a href="https://www.apm.org.br/">O Globo/APM (mar/2025) — Espera média de 57 dias para especialista em 2024</a>
+      <a href="https://www.fehosp.com.br/noticias/detalhes/6802">FEHOS (fev/2025) — Fila de cirurgias eletivas cresce 26% em 2024 (mais de 1,3 mi)</a>
+      <a href="https://portaltelemedicina.com.br/">Portal Telemedicina/Saúde Digital Brasil — 7,5 mi de teleconsultas (2020–21)</a>
+    </div>
+    <p style="margin-top:18px">Os valores em US$ convertem-se de forma indicativa para BRL. Projeções de receita são ilustrativas e baseadas em participações de mercado hipotéticas; não constituem garantia de resultado. Documento gerado em 12/09/2026 para fins de apresentação comercial do projeto <b>rede.medica</b>.</p>
+  </div>
+</footer>
+
+<script>
+  // Contador animado dos números
+  const fmt = (v, d) => v.toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d});
+  const els = document.querySelectorAll('.stat .num[data-count]');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const el = e.target;
+      io.unobserve(el);
+      const target = parseFloat(el.dataset.count);
+      const dec = parseInt(el.dataset.decimals || '0', 10);
+      const t0 = performance.now();
+      const dur = 1200;
+      (function tick(t){
+        const p = Math.min(1, (t - t0) / dur);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = fmt(target * eased, dec);
+        if (p < 1) requestAnimationFrame(tick);
+        else el.textContent = fmt(target, dec);
+      })(t0);
+    });
+  }, {threshold: .4});
+  els.forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>
