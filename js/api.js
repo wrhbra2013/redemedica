@@ -70,6 +70,7 @@ const API = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this._token || ''}`,
       },
+      body: JSON.stringify({}),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
