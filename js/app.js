@@ -5,6 +5,7 @@ const PAGES = {
   pacientes: { label: 'Pacientes', icon: 'users', section: 'Agenda' },
   servicos: { label: 'Serviços', icon: 'activity', section: 'Catálogo' },
   categorias: { label: 'Categorias', icon: 'category', section: 'Catálogo' },
+  configuracoes: { label: 'Configurações', icon: 'settings', section: 'Configurações' },
   menu: { label: 'Menu', icon: 'menu', section: 'Configurações' },
 };
 
@@ -25,6 +26,7 @@ const SUBTITLES = {
   pacientes: 'Cadastro gratuito de pacientes',
   servicos: 'Serviços oferecidos',
   categorias: 'Registre e gerencie as categorias dos profissionais',
+  configuracoes: 'Identidade da clínica, Pix e notificações',
   menu: 'Personalize a ordem, os nomes e a visibilidade dos itens do menu',
 };
 
@@ -62,6 +64,9 @@ const ICONS = {
   shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
   device: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  pix: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8M12 8v8"/></svg>',
 };
 
 const STATS = [
@@ -81,6 +86,7 @@ const PAGE_ICONS = {
   pacientes: 'users',
   servicos: 'activity',
   categorias: 'category',
+  configuracoes: 'settings',
   menu: 'menu',
 };
 
@@ -93,6 +99,250 @@ let apiOnline = false;
 let navMeta = [];
 let navItemIndex = {};
 let menuConfig = null;
+let identidadeConfig = null;
+let pixConfig = null;
+let notificacaoConfig = null;
+let publicAgendamentos = [];
+let clinicFilter = '';
+
+function parseClinicFilter() {
+  try {
+    const p = new URLSearchParams(location.search);
+    clinicFilter = String(p.get('c') || '').trim();
+  } catch { clinicFilter = ''; }
+}
+
+const IDENTIDADE_KEY = 'identidade';
+const PIX_KEY = 'pix';
+const NOTIFICACAO_KEY = 'notificacao';
+
+async function lerConfig(key) {
+  try {
+    const r = await API.getConfig(key);
+    return (r && r.valor && typeof r.valor === 'string' && r.valor.trim()) ? JSON.parse(r.valor) : null;
+  } catch { return null; }
+}
+
+async function carregarConfigsSite(force = false) {
+  if (!identidadeConfig || force) identidadeConfig = await lerConfig(IDENTIDADE_KEY);
+  if (!pixConfig || force) pixConfig = await lerConfig(PIX_KEY);
+  if (!notificacaoConfig || force) notificacaoConfig = await lerConfig(NOTIFICACAO_KEY);
+  if (identidadeConfig) aplicarIdentidadeFooter(identidadeConfig);
+}
+
+function atualizarFooterContato(identidade) {
+  const num = String(identidade.whatsapp || identidade.telefone || '').replace(/\D/g, '');
+  const elTel = document.getElementById('footerTel');
+  const elWa = document.getElementById('footerWa');
+  if (num) {
+    if (elTel) elTel.href = 'tel:+' + num;
+    if (elWa) {
+      elWa.href = 'https://wa.me/' + num + '?text=' + encodeURIComponent('Olá, gostaria de agendar uma consulta.');
+      elWa.title = 'WhatsApp: ' + num;
+    }
+  }
+}
+
+function aplicarIdentidadeFooter(identidade) {
+  const nome = String(identidade.nome || '').trim();
+  const tag = String(identidade.tagline || 'Agendamento médico por assinatura').trim();
+  const label = String(identidade.footer_label || identidade.nome || 'Consulta e agendamento').trim();
+  const fn = document.getElementById('footerName');
+  const ft = document.getElementById('footerTagline');
+  if (fn && nome) fn.textContent = nome;
+  if (ft) ft.textContent = tag;
+  const fl = document.getElementById('footerLabel');
+  if (fl) fl.textContent = label;
+  atualizarFooterContato(identidade);
+}
+
+function notificarWebhook(evento, dados) {
+  const url = notificacaoConfig && String(notificacaoConfig.webhook_url || '').trim();
+  if (!url) return;
+  const payload = {
+    evento,
+    projeto: 'rede.medica',
+    data: dados || {},
+    enviado_em: new Date().toISOString(),
+  };
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    mode: 'no-cors',
+  }).catch(() => {});
+}
+
+const PIX_STATUS_FINAL = ['CANCELADO', 'REALIZADO'];
+
+function normHora(h) {
+  const s = String(h || '').trim();
+  return s.length >= 5 ? s.slice(0, 5) : s;
+}
+
+function slotConflitante(data, hora) {
+  if (!data || !hora) return false;
+  const hora5 = normHora(hora);
+  return (publicAgendamentos || []).some(a => {
+    if (String(a.data || '') !== data || normHora(a.hora) !== hora5) return false;
+    const st = String(a.status || '').toUpperCase();
+    return !PIX_STATUS_FINAL.includes(st);
+  });
+}
+
+function preencherHoraMinima() {
+  const h = document.querySelector('#formConsulta input[name="hora"]');
+  if (h && !h.dataset.init) {
+    const now = new Date();
+    const ho = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const hoje = now.toISOString().split('T')[0];
+    const dataEl = document.querySelector('#formConsulta input[name="data"]');
+    if (dataEl && dataEl.value === hoje) h.min = ho + ':' + mi;
+    h.dataset.init = '1';
+  }
+}
+
+function verificarConflitoPublico() {
+  const form = document.getElementById('formConsulta');
+  if (!form) return;
+  const data = form.querySelector('input[name="data"]')?.value || '';
+  const hora = form.querySelector('input[name="hora"]')?.value || '';
+  const warn = document.getElementById('slotWarning');
+  const btn = document.getElementById('btnPedido');
+  const conflito = slotConflitante(data, hora);
+  if (warn) warn.hidden = !conflito;
+  if (btn) btn.disabled = conflito;
+}
+
+function alternarFormaPagamento() {
+  const form = document.getElementById('formConsulta');
+  if (!form) return;
+  const forma = form.querySelector('input[name="forma_pagamento"]:checked')?.value || 'whatsapp';
+  const pix = __getFormaPix(form);
+  if (pix) pix.textContent = forma === 'pix' ? 'Solicitar Consulta (Pix)' : 'Solicitar Consulta';
+  const hint = document.getElementById('payHint');
+  if (hint) {
+    hint.textContent = forma === 'pix'
+      ? 'Ao clicar, você recebe o QR Code Pix para pagar na hora e garantir a vaga.'
+      : 'A clínica recebe seu pedido e confirma a vaga pelo WhatsApp/telefone.';
+    hint.hidden = false;
+  }
+  verificarConflitoPublico();
+}
+
+function __getFormaPix(form) {
+  const btns = form.querySelectorAll('button[type="submit"]');
+  return btns && btns.length ? btns[btns.length - 1] : null;
+}
+
+function copiarTexto(texto) {
+  const done = () => mostrarToast('Código Pix copiado!', 'success');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(done).catch(() => copiarFallback(texto, done));
+  } else copiarFallback(texto, done);
+}
+
+function copiarFallback(texto, done) {
+  const ta = document.createElement('textarea');
+  ta.value = texto;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch {}
+  document.body.removeChild(ta);
+}
+
+function doisDigitos(n) { return String(n).padStart(2, '0'); }
+
+function crc16Pix(str) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function gerarPixBRCode({ chave, nome, cidade, valor, txid }) {
+  const semAcento = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const key = String(chave || '').trim();
+  const name = semAcento(nome || 'CLINICA').trim().toUpperCase().slice(0, 25);
+  const city = semAcento(cidade || '').trim().toUpperCase().slice(0, 15);
+  const amount = (Math.round((parseFloat(valor) || 0) * 100) / 100).toFixed(2);
+  let txidV = String(txid || '***').toUpperCase().trim().slice(0, 25);
+  if (!txidV) txidV = '***';
+  const gui = '0014BR.GOV.BCB.PIX';
+  const keyFld = '01' + doisDigitos(key.length) + key;
+  const mai = gui + keyFld;
+  let payload = '000201' + '26' + doisDigitos(mai.length) + mai + '52040000' + '5303986';
+  if (amount && parseFloat(amount) > 0) payload += '54' + doisDigitos(amount.length) + amount;
+  payload += '5802BR' + '59' + doisDigitos(name.length) + name;
+  payload += '60' + doisDigitos(city.length) + city;
+  const txidFld = '05' + doisDigitos(txidV.length) + txidV;
+  payload += '62' + doisDigitos(txidFld.length) + txidFld + '6304';
+  return payload + crc16Pix(payload);
+}
+
+function gerarTxid() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let out = '';
+  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+const STATUS_OPCOES = ['PENDENTE', 'AGUARDANDO_PIX', 'PAGO', 'CONFIRMADO', 'REALIZADO', 'CANCELADO'];
+
+function gerarStatusSelect(status, id) {
+  const opcoes = STATUS_OPCOES.map(s =>
+    `<option value="${s}" ${status === s ? 'selected' : ''}>${s.replace(/_/g, ' ')}</option>`
+  ).join('');
+  return `<select class="status-select sel-${String(status || 'PENDENTE').toLowerCase()}" data-prev="${esc(status || '')}" onchange="mudarStatusAgendamento('${esc(id)}', this.value, this)" aria-label="Alterar status">${opcoes}</select>`;
+}
+
+async function mudarStatusAgendamento(id, novo, el) {
+  try {
+    await API.update('agendamentos', id, { status: novo });
+    mostrarToast('Status atualizado: ' + novo.replace(/_/g, ' '), 'success');
+    if (novo === 'CONFIRMADO') {
+      let item = null;
+      try {
+        const r = await API.get('agendamentos', id);
+        item = Array.isArray(r) ? (r[0] || null) : r;
+      } catch {}
+      notificarWebhook('agendamento_confirmado', { id, item });
+    }
+    carregarPagina(currentPage);
+    atualizarContagem('agendamentos');
+  } catch (err) {
+    mostrarToast('Erro ao atualizar status: ' + err.message, 'error');
+    if (el) el.value = el.dataset.prev || '';
+  }
+}
+
+function whatsappPacienteLink(app, tipo) {
+  const num = String(app.whatsapp || app.telefone || '').replace(/\D/g, '');
+  if (!num) return null;
+  const clinica = (identidadeConfig && identidadeConfig.nome) || 'Rede.Médica';
+  const dia = app.data ? app.data : 'no dia combinado';
+  const hora = app.hora ? ' às ' + app.hora : '';
+  const msg = (tipo === 'lembrete')
+    ? `Olá ${app.cliente}! Este é um lembrete da ${clinica}: sua consulta é em ${dia}${hora}. Qualquer dúvida, fale com a gente.`
+    : `Olá ${app.cliente}! Aqui é da ${clinica}, em relação à sua consulta de ${dia}${hora}.`;
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+}
+
+function acoesAgendamento(app) {
+  const contato = whatsappPacienteLink(app, 'contato');
+  const lembrete = whatsappPacienteLink(app, 'lembrete');
+  let out = '';
+  if (contato) out += `<a class="btn-icon wa" href="${contato}" target="_blank" rel="noopener" title="Falar com o paciente">${ICONS.whatsapp}</a>`;
+  if (lembrete) out += `<a class="btn-icon wa" href="${lembrete}" target="_blank" rel="noopener" title="Enviar lembrete por WhatsApp">${ICONS.bell}</a>`;
+  return out;
+}
 
 // ---------------------------------------------------------------
 // Autenticação (modo público vs modo administrador)
@@ -142,6 +392,7 @@ async function initAuth() {
     }
   }
   aplicarModoInterface();
+  carregarConfigsSite();
   if (isAdmin) {
     menuConfig = await carregarMenuConfigDaApi();
     montarNavMeta([]);
@@ -559,7 +810,7 @@ async function carregarContagens() {
   if (!apiOnline || !isAdmin) return;
   const counts = {};
   await Promise.all(navMeta.map(async m => {
-    if (m.id === 'dashboard') return;
+    if (m.id === 'dashboard' || m.id === 'menu' || m.id === 'configuracoes') return;
     try {
       const rows = await API.get(m.id);
       counts[m.id] = Array.isArray(rows) ? rows.length : 0;
@@ -604,7 +855,7 @@ function navegar(page) {
   document.getElementById('pageSubtitle').textContent = SUBTITLES[page] || '';
   const iconEl = document.getElementById('pageIcon');
   if (iconEl) iconEl.innerHTML = ICONS[PAGE_ICONS[page] || 'grid'];
-  const showNovo = page !== 'dashboard' && page !== 'menu';
+  const showNovo = page !== 'dashboard' && page !== 'menu' && page !== 'configuracoes';
   const btnNovo = document.getElementById('btnNovo');
   btnNovo.style.display = showNovo ? 'inline-flex' : 'none';
   btnNovo.onclick = () => abrirModal(page);
@@ -621,6 +872,7 @@ async function carregarPagina(page) {
   `;
   if (page === 'dashboard') return carregarDashboard(container);
   if (page === 'menu') return carregarEditorMenu(container);
+  if (page === 'configuracoes') return carregarConfiguracoes(container);
   return carregarTabela(page, container);
 }
 
@@ -830,11 +1082,137 @@ async function restaurarMenuPadrao() {
 }
 
 // ---------------------------------------------------------------
+// Configurações da clínica (identidade, Pix, notificações)
+// ---------------------------------------------------------------
+async function carregarConfiguracoes(container) {
+  container.innerHTML = `
+    <div class="skeleton-wrap">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-rows"></div>
+    </div>`;
+  await carregarConfigsSite(true);
+  const id = identidadeConfig || {};
+  const pix = pixConfig || {};
+  const not = notificacaoConfig || {};
+  container.innerHTML = `
+    <div class="config-grid">
+      ${gerarCardConfig('Identidade da clínica',
+        `Mostra o nome da clínica na página pública e no rodapé. Os links de telefone/WhatsApp do rodapé passam a usar este número.`,
+        `
+        <div class="form-row">
+          <div class="form-group"><label>Nome da clínica</label><input id="cfgNome" value="${esc(id.nome || '')}" placeholder="Ex.: Clínica Bem Viver"></div>
+          <div class="form-group"><label>Frase do rodapé</label><input id="cfgTagline" value="${esc(id.tagline || 'Agendamento médico por assinatura')}"></div>
+        </div>
+        <div class="form-group"><label>Frase de boas-vindas (página pública)</label><textarea id="cfgHero">${esc(id.hero || '')}</textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label>Telefone</label><input id="cfgTelefone" value="${esc(id.telefone || '')}" placeholder="(11) 99999-9999"></div>
+          <div class="form-group"><label>WhatsApp</label><input id="cfgWhatsapp" value="${esc(id.whatsapp || '')}" placeholder="(11) 99999-9999"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Cidade</label><input id="cfgCidade" value="${esc(id.cidade || '')}"></div>
+          <div class="form-group"><label>Endereço</label><input id="cfgEndereco" value="${esc(id.endereco || '')}"></div>
+        </div>
+        <button class="btn btn-primary" onclick="salvarConfigIdentidade(this)">${ICONS.check}<span>Salvar identificação</span></button>`
+      )}
+      ${gerarCardConfig('Pagamento via Pix',
+        `Permite o paciente pagar na hora e garantir a vaga. O código Pix (BR Code) é gerado aqui mesmo, sem gateway. Use a chave Pix cadastrada na sua conta bancária.`,
+        `
+        <div class="form-group"><label>Chave Pix</label><input id="cfgPixChave" value="${esc(pix.chave || '')}" placeholder="CPF, CNPJ, e-mail ou celular"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Nome do beneficiário</label><input id="cfgPixNome" value="${esc(pix.nome || '')}" placeholder="Nome que aparece no Pix"></div>
+          <div class="form-group"><label>Cidade</label><input id="cfgPixCidade" value="${esc(pix.cidade || '')}"></div>
+        </div>
+        <button class="btn btn-primary" onclick="salvarConfigPix(this)">${ICONS.check}<span>Salvar Pix</span></button>
+        <p class="config-note">Deixe a chave em branco para desativar o pagamento por Pix na página pública.</p>`
+      )}
+      ${gerarCardConfig('Notificações e lembretes',
+        `Webhook recebe um POST a cada pedido novo e a cada confirmação — use com ntfy.sh, Zapier, Make.com, WhatsApp Business API etc. para alertar e agendar lembretes automáticos (ex.: 24h antes).`,
+        `
+        <div class="form-group"><label>URL do webhook</label><input id="cfgHook" value="${esc(not.webhook_url || '')}" placeholder="https://ntfy.sh/seu-topico"></div>
+        <div class="form-group"><label>WhatsApp da clínica</label><input id="cfgNotWhatsApp" value="${esc(not.whatsapp || '')}" placeholder="(11) 99999-9999"></div>
+        <div class="form-actions-row">
+          <button class="btn btn-primary" onclick="salvarConfigNotificacao(this)">${ICONS.check}<span>Salvar notificações</span></button>
+          <button class="btn btn-ghost" onclick="testarWebhook(this)">${ICONS.bell}<span>Enviar teste</span></button>
+        </div>
+        <p class="config-note">Payload: ${esc('{ evento, projeto, data, enviado_em }')} — eventos: <b>novo_pedido</b>, <b>pix_gerado</b>, <b>agendamento_confirmado</b>.</p>`
+      )}
+    </div>`;
+}
+
+function gerarCardConfig(titulo, descricao, conteudo) {
+  return `<div class="card">
+    <div class="card-header">${esc(titulo)}</div>
+    <div class="card-body">
+      <p class="config-desc">${esc(descricao)}</p>
+      ${conteudo}
+    </div>
+  </div>`;
+}
+
+async function carregarUmaConfig(key) {
+  return lerConfig(key);
+}
+
+function salvarConfigIdentidade(btn) {
+  salvarConfig(IDENTIDADE_KEY, {
+    nome: v('cfgNome'),
+    tagline: v('cfgTagline'),
+    hero: v('cfgHero'),
+    telefone: v('cfgTelefone'),
+    whatsapp: v('cfgWhatsapp'),
+    cidade: v('cfgCidade'),
+    endereco: v('cfgEndereco'),
+  }, 'Identificação salva com sucesso', btn);
+}
+
+function salvarConfigPix(btn) {
+  salvarConfig(PIX_KEY, {
+    chave: v('cfgPixChave'),
+    nome: v('cfgPixNome'),
+    cidade: v('cfgPixCidade'),
+  }, 'Pix salvo com sucesso', btn);
+}
+
+function salvarConfigNotificacao(btn) {
+  salvarConfig(NOTIFICACAO_KEY, {
+    webhook_url: v('cfgHook'),
+    whatsapp: v('cfgNotWhatsApp'),
+  }, 'Notificações salvas com sucesso', btn);
+}
+
+async function salvarConfig(key, valor, msgOk, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    await API.saveConfig(key, JSON.stringify(valor));
+    await carregarConfigsSite(true);
+    mostrarToast(msgOk, 'success');
+  } catch (err) {
+    mostrarToast('Erro ao salvar: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function testarWebhook(btn) {
+  const url = String(v('cfgHook') || '').trim();
+  if (!url) { mostrarToast('Informe a URL do webhook primeiro', 'error'); return; }
+  if (btn) btn.disabled = true;
+  const hook = { webhook_url: url, whatsapp: v('cfgNotWhatsApp') };
+  notificacaoConfig = hook;
+  notificarWebhook('teste', { mensagem: 'Notificação de teste da Rede.Médica' });
+  mostrarToast('Teste enviado — confira o destino do webhook', 'success');
+  if (btn) btn.disabled = false;
+}
+
+function v(id) { return document.getElementById(id)?.value.trim() ?? ''; }
+
+// ---------------------------------------------------------------
 // Modo público — somente pedidos de consulta
 // ---------------------------------------------------------------
 async function carregarPublicPage() {
   currentPage = 'public';
   currentEntity = '';
+  parseClinicFilter();
   const container = document.getElementById('pageContent');
   document.getElementById('pageTitle').textContent = 'Agende sua consulta';
   document.getElementById('pageSubtitle').textContent = 'Envie seu pedido — confirmamos pelo WhatsApp';
@@ -849,18 +1227,33 @@ async function carregarPublicPage() {
   `;
 
   try {
-    const [categorias, servicos] = await Promise.all([
+    const [categorias, servicos, agendamentos] = await Promise.all([
       API.get('categorias').catch(() => []),
       API.get('servicos').catch(() => []),
+      API.get('agendamentos').catch(() => []),
+      carregarConfigsSite(),
     ]);
-    const ativos = (servicos || []).filter(s => s.ativo !== '0' && s.ativo !== 0);
+    publicAgendamentos = Array.isArray(agendamentos) ? agendamentos : [];
+    let cats = categorias || [];
+    let servs = (servicos || []).filter(s => s.ativo !== '0' && s.ativo !== 0);
+    if (clinicFilter) {
+      const match = item => {
+        const v = item.clinica_id ?? item.clinica ?? item.unidade;
+        return v === undefined || String(v) === clinicFilter;
+      };
+      cats = cats.filter(match);
+      servs = servs.filter(match);
+    }
+    const ativos = servs;
     container.innerHTML = `
       <div class="public-hero">
         <div class="public-hero-icon">${ICONS.stethoscope}</div>
-        <h1>Bem-vindo à <strong>Rede.Médica</strong></h1>
-        <p>Solicite sua consulta agora. Nossa equipe retornará para confirmar data, horário e profissional pelo WhatsApp.</p>
+        <h1>Bem-vindo à <strong>${esc((identidadeConfig && identidadeConfig.nome) || 'Rede.Médica')}</strong></h1>
+        <p>${esc((identidadeConfig && identidadeConfig.hero) || 'Solicite sua consulta agora. Nossa equipe retornará para confirmar data, horário e profissional pelo WhatsApp.')}</p>
       </div>
-      ${gerarCatalogoPublico(categorias || [], ativos)}
+      ${clinicFilter && ativos.length === 0 && cats.length === 0 ? `
+        <div class="card"><div class="card-body"><p style="text-align:center;color:var(--text-tertiary)">Nenhum serviço disponível para esta unidade.</p></div></div>`
+      : gerarCatalogoPublico(cats, ativos)}
     `;
   } catch (err) {
     container.innerHTML = `
@@ -892,6 +1285,8 @@ function gerarCatalogoPublico(categorias, servicos) {
     `<option value="${esc(s.id)}" data-nome="${esc(s.nome)}" data-valor="${esc(s.preco)}">${esc(s.nome)} — R$ ${(+s.preco || 0).toFixed(2)}</option>`
   ).join('');
 
+  const hasPix = !!(pixConfig && String(pixConfig.chave || '').trim());
+
   return `<div class="public-grid">
     <div class="card">
       <div class="card-header">Serviços disponíveis</div>
@@ -905,6 +1300,23 @@ function gerarCatalogoPublico(categorias, servicos) {
       <div class="card-header">Solicitar consulta</div>
       <div class="card-body">
         <form id="formConsulta" onsubmit="enviarPedidoConsulta(event)">
+          <div class="form-group">
+            <label>Forma de confirmação</label>
+            <div class="pay-methods">
+              <label class="pay-method${hasPix ? '' : ' is-solo'}">
+                <input type="radio" name="forma_pagamento" value="whatsapp" checked onchange="alternarFormaPagamento()">
+                <span class="pay-icon">${ICONS.whatsapp}</span>
+                <span class="pay-info"><b>WhatsApp</b><small>A clínica confirma a vaga depois</small></span>
+              </label>
+              ${hasPix ? `
+              <label class="pay-method">
+                <input type="radio" name="forma_pagamento" value="pix" onchange="alternarFormaPagamento()">
+                <span class="pay-icon">${ICONS.pix}</span>
+                <span class="pay-info"><b>Pix na hora</b><small>Pague já e garanta a vaga</small></span>
+              </label>` : ''}
+            </div>
+            <p class="pay-hint" id="payHint">A clínica recebe seu pedido e confirma a vaga pelo WhatsApp/telefone.</p>
+          </div>
           <div class="form-group">
             <label>Seu nome <span class="req">*</span></label>
             <input type="text" name="cliente" placeholder="Nome completo" required>
@@ -929,12 +1341,15 @@ function gerarCatalogoPublico(categorias, servicos) {
             </div>
             <div class="form-group">
               <label>Data <span class="req">*</span></label>
-              <input type="date" name="data" required>
+              <input type="date" name="data" required onchange="verificarConflitoPublico()" oninput="preencherHoraMinima()">
             </div>
           </div>
           <div class="form-group">
             <label>Horário desejado <span class="req">*</span></label>
-            <input type="time" name="hora" required>
+            <input type="time" name="hora" required onchange="verificarConflitoPublico()" oninput="preencherHoraMinima()">
+          </div>
+          <div class="slot-warning" id="slotWarning" hidden>
+            ${ICONS.clock} Este horário já está ocupado. Escolha outra data ou horário.
           </div>
           <div class="form-group">
             <label>Observações</label>
@@ -943,7 +1358,7 @@ function gerarCatalogoPublico(categorias, servicos) {
           <input type="hidden" name="servico_nome">
           <input type="hidden" name="valor">
           <input type="hidden" name="status" value="PENDENTE">
-          <button class="btn btn-primary btn-block" type="submit">Solicitar Consulta</button>
+          <button class="btn btn-primary btn-block" type="submit" id="btnPedido">Solicitar Consulta</button>
         </form>
       </div>
     </div>
@@ -971,20 +1386,83 @@ async function enviarPedidoConsulta(event) {
     for (const k of Object.keys(data)) {
       if (data[k] === '') delete data[k];
     }
-    await API.create('agendamentos', data);
-    form.innerHTML = `
-      <div class="consulta-success">
-        <div class="consulta-success-icon">${ICONS.calendarCheck}</div>
-        <h3>Pedido recebido!</h3>
-        <p>Registramos a sua solicitação. Retornaremos pelo WhatsApp/telefone para confirmar.</p>
-        <button class="btn btn-secondary" type="button" onclick="carregarPublicPage()">Novo pedido</button>
-      </div>`;
-    mostrarToast('Pedido de consulta enviado!', 'success');
+    const forma = data.forma_pagamento || 'whatsapp';
+    delete data.forma_pagamento;
+
+    const fixHoras = (str) => (String(str || '').length === 5 ? str + ':00' : str);
+    data.hora = fixHoras(data.hora);
+
+    if (slotConflitante(data.data, data.hora)) {
+      mostrarToast('Este horário já está ocupado — escolha outro.', 'error');
+      btn.disabled = false;
+      verificarConflitoPublico();
+      return;
+    }
+
+    let brCode = null;
+    if (forma === 'pix' && pixConfig && String(pixConfig.chave || '').trim()) {
+      const txid = gerarTxid();
+      brCode = gerarPixBRCode({
+        chave: pixConfig.chave,
+        nome: pixConfig.nome,
+        cidade: pixConfig.cidade,
+        valor: data.valor || 0,
+        txid,
+      });
+      data.status = 'AGUARDANDO_PIX';
+      data.pix_copia_cola = brCode;
+      data.pix_txid = txid;
+      data.pix_valor = data.valor || '0';
+      data.pago = 0;
+    }
+
+    const r = await API.create('agendamentos', data);
+    const id = (Array.isArray(r) && r[0]) ? r[0].id : (r && r.id) || '';
+
+    const dadosNotif = Object.assign({ id }, data, { forma });
+    notificarWebhook('novo_pedido', dadosNotif);
+    if (forma === 'pix') notificarWebhook('pix_gerado', { id, txid: data.pix_txid, valor: data.pix_valor });
+
+    if (forma === 'pix' && brCode) {
+      form.innerHTML = gerarPainelPix(brCode, data);
+    } else {
+      form.innerHTML = `
+        <div class="consulta-success">
+          <div class="consulta-success-icon">${ICONS.calendarCheck}</div>
+          <h3>Pedido recebido!</h3>
+          <p>Registramos a sua solicitação. Retornaremos pelo WhatsApp/telefone para confirmar.</p>
+          <button class="btn btn-secondary" type="button" onclick="carregarPublicPage()">Novo pedido</button>
+        </div>`;
+      mostrarToast('Pedido de consulta enviado!', 'success');
+    }
   } catch (err) {
     mostrarToast('Erro ao enviar: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
   }
+}
+
+function gerarPainelPix(brCode, data) {
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&qzone=1&data=${encodeURIComponent(brCode)}`;
+  const clinica = (identidadeConfig && identidadeConfig.nome) || 'Rede.Médica';
+  const msgWa = `Olá! Acabei de pagar o Pix para minha consulta de ${data.servico_nome || 'consulta'}${data.data ? ' em ' + formatarData(data.data) : ''}. Meu nome é ${data.cliente}.`;
+  const zap = (notificacaoConfig && String(notificacaoConfig.whatsapp || '').replace(/\D/g, ''))
+    || (identidadeConfig && String(identidadeConfig.whatsapp || '').replace(/\D/g, '')) || '';
+  return `
+    <div class="consulta-success">
+      <div class="consulta-success-icon">${ICONS.pix}</div>
+      <h3>Quase lá — pague o Pix</h3>
+      <p>${esc(data.cliente)}, escaneie o QR Code abaixo e faça o pagamento para garantir a vaga em ${esc(clinica)}.</p>
+      <img class="pix-qr" src="${qrSrc}" alt="QR Code Pix" width="220" height="220">
+      <p class="pix-amount"><b>R$ ${(+data.valor || 0).toFixed(2)}</b>${data.data ? ' · ' + formatarData(data.data) : ''}</p>
+      <div class="pix-copy-row">
+        <input class="pix-copy-input" type="text" readonly value="${esc(brCode)}" id="pixCopiaCola" aria-label="Pix copia e cola">
+        <button class="btn btn-secondary btn-sm" type="button" onclick="copiarTexto(document.getElementById('pixCopiaCola').value)">${ICONS.copy}<span>Copiar</span></button>
+      </div>
+      <p class="pix-hint">Após pagar${zap ? ', avise a gente no WhatsApp' : ''}. Assim que confirmarmos o pagamento, sua vaga fica garantida.</p>
+      ${zap ? `<button class="btn btn-secondary btn-block" type="button" onclick="window.open('https://wa.me/${zap}?text=${encodeURIComponent(msgWa)}','_blank')">${ICONS.whatsapp}<span>Já paguei — avisar no WhatsApp</span></button>` : ''}
+      <button class="btn btn-ghost btn-block" type="button" onclick="carregarPublicPage()">Fechar</button>
+    </div>`;
 }
 
 // ---------------------------------------------------------------
@@ -1039,15 +1517,23 @@ function gerarTabela(entity, data) {
   }
   const cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'created_at' && k !== 'updated_at');
   const isMedicos = entity === 'medicos';
+  const isAgendamentos = entity === 'agendamentos';
   const headers = cols.map(c => `<th>${rotuloColuna(c)}</th>`).join('');
   const extraHeader = isMedicos ? '<th>Contato</th>' : '';
   const rows = data.map(row => {
-    const cells = cols.map(c => `<td>${formatarCelula(c, row[c], row)}</td>`).join('');
+    const cells = cols.map(c => {
+      if (isAgendamentos && c === 'status') {
+        return `<td>${gerarStatusSelect(String(row[c] || 'PENDENTE'), row.id)}</td>`;
+      }
+      return `<td>${formatarCelula(c, row[c], row)}</td>`;
+    }).join('');
     const contato = isMedicos ? `<td>${gerarContato(row)}</td>` : '';
+    const acoesAgend = isAgendamentos ? acoesAgendamento(row) : '';
     const catAttr = isMedicos ? ` data-categoria="${esc(row.categoria || '')}"` : '';
     const geoAttr = ` data-uf="${esc(row.uf || '')}" data-cidade="${esc(row.cidade || '')}"`;
     return `<tr${catAttr}${geoAttr}><td class="actions-cell">
       <button class="btn-icon" onclick="editarRegistro('${entity}','${esc(row.id)}')" title="Editar">${ICONS.edit}</button>
+      ${acoesAgend}
       <button class="btn-icon danger" onclick="excluirRegistro('${entity}','${esc(row.id)}')" title="Excluir">${ICONS.trash}</button>
     </td>${cells}${contato}</tr>`;
   }).join('');
@@ -1076,15 +1562,15 @@ function gerarTabelaAgendamentos(data) {
   if (!data || data.length === 0) {
     return `<div class="card"><div class="card-body"><p style="text-align:center;color:var(--text-tertiary)">Nenhum agendamento</p></div></div>`;
   }
-  const headers = ['Paciente', 'Telefone', 'Data', 'Hora', 'Status'];
+  const headers = ['Paciente', 'Telefone', 'Data', 'Hora', 'Status', 'Ações'];
   const rows = data.map(a => {
-    const statusClass = `badge-${String(a.status || 'pendente').toLowerCase()}`;
     return `<tr>
       <td>${esc(a.cliente || '-')}</td>
-      <td>${esc(a.telefone || '-')}</td>
+      <td>${fmtTelefone(a.telefone)}</td>
       <td>${formatarData(a.data)}</td>
       <td>${esc(a.hora || '-')}</td>
-      <td><span class="badge ${statusClass}">${esc(a.status || 'PENDENTE')}</span></td>
+      <td>${gerarStatusSelect(String(a.status || 'PENDENTE'), a.id)}</td>
+      <td><div class="actions-cell">${acoesAgendamento(a)}</div></td>
     </tr>`;
   }).join('');
   return `<div class="card">
@@ -1093,6 +1579,13 @@ function gerarTabelaAgendamentos(data) {
       <div class="table-wrapper"><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
     </div>
   </div>`;
+}
+
+function fmtTelefone(v) {
+  const d = String(v || '').replace(/\D/g, '');
+  if (!d) return '-';
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  return esc(v);
 }
 
 function rotuloColuna(key) {
@@ -1151,6 +1644,11 @@ function formatarCelula(col, val, row) {
 
 function formatarData(str) {
   if (!str) return '-';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = String(str).split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return isNaN(dt.getTime()) ? esc(str) : dt.toLocaleDateString('pt-BR');
+  }
   const d = new Date(str);
   return isNaN(d.getTime()) ? esc(str) : d.toLocaleDateString('pt-BR');
 }
@@ -1413,6 +1911,8 @@ async function getSelectData(entity) {
     } catch {}
     map.status = [
       { id: 'PENDENTE', nome: 'Pendente' },
+      { id: 'AGUARDANDO_PIX', nome: 'Aguardando Pix' },
+      { id: 'PAGO', nome: 'Pago' },
       { id: 'CONFIRMADO', nome: 'Confirmado' },
       { id: 'REALIZADO', nome: 'Realizado' },
       { id: 'CANCELADO', nome: 'Cancelado' },
